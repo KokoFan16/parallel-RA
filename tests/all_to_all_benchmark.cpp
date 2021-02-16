@@ -210,6 +210,15 @@ static void non_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int
     non_uniform_buffer.cumulative_tuple_process_map = new int[non_uniform_buffer.nprocs];
     memset(non_uniform_buffer.cumulative_tuple_process_map, 0, non_uniform_buffer.nprocs * sizeof(int));
 
+    for (int r=0; r < non_uniform_buffer.ra_count; r++)
+    {
+        for (int i=0; i < non_uniform_buffer.nprocs; i++)
+        {
+        	int random = random_offset + rand() % range;
+        	non_uniform_buffer.local_compute_output_size_flat[i * non_uniform_buffer.ra_count + r] = (entry_count * random) / 100;
+        	non_uniform_buffer.cumulative_tuple_process_map[i] = non_uniform_buffer.cumulative_tuple_process_map[i] + non_uniform_buffer.local_compute_output_size_flat[i * non_uniform_buffer.ra_count + r];
+        }
+    }
 
     for (int it=0; it < ITERATION_COUNT; it++)
     {
@@ -223,17 +232,13 @@ static void non_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int
 
         double buffer_creation_start=MPI_Wtime();
         non_uniform_buffer.local_compute_output_size_total=0;
-        memset(non_uniform_buffer.cumulative_tuple_process_map, 0, non_uniform_buffer.nprocs * sizeof(int));
-        memset(non_uniform_buffer.local_compute_output_size_flat, 0, non_uniform_buffer.nprocs * non_uniform_buffer.ra_count * sizeof(int));
+//        memset(non_uniform_buffer.cumulative_tuple_process_map, 0, non_uniform_buffer.nprocs * sizeof(int));
+//        memset(non_uniform_buffer.local_compute_output_size_flat, 0, non_uniform_buffer.nprocs * non_uniform_buffer.ra_count * sizeof(int));
 
         for (int r=0; r < non_uniform_buffer.ra_count; r++)
         {
             for (int i=0; i < non_uniform_buffer.nprocs; i++)
             {
-                int random = random_offset + rand() % range;
-                non_uniform_buffer.local_compute_output_size_flat[i * non_uniform_buffer.ra_count + r] = (entry_count * random) / 100;
-
-                non_uniform_buffer.cumulative_tuple_process_map[i] = non_uniform_buffer.cumulative_tuple_process_map[i] + non_uniform_buffer.local_compute_output_size_flat[i * non_uniform_buffer.ra_count + r];
                 u64 val = i;
                 for (int t=0; t < non_uniform_buffer.local_compute_output_size_flat[i * non_uniform_buffer.ra_count + r]; t++)
                 {
@@ -296,7 +301,6 @@ static void all_to_allv_test(all_to_allv_buffer non_uniform_buffer, MPI_Comm com
     double all_to_all_end = MPI_Wtime();
     *all_to_all_time = all_to_all_end - all_to_all_start;
 
-
     double bt_start = MPI_Wtime();
     int *send_disp = new int[nprocs];
     int *recv_counts = new int[nprocs];
@@ -354,7 +358,14 @@ static void all_to_allv_test(all_to_allv_buffer non_uniform_buffer, MPI_Comm com
         MPI_Allreduce(&total_recv_count, &global_total_recv_count, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
 
         if (rank == 0)
-            std::cerr << "[Non Uniform] " << nprocs << " , " << entry_count << " , " << random_offset << " , "  << range << " ,  Total recv count " << global_total_recv_count  << " Total send count " << global_total_send_count << std::endl;
+        {
+            std::cout << "[Non Uniform] " << nprocs << " , " << entry_count << " , " << random_offset << " , "  << range << " ,  Total recv count " << global_total_recv_count  << " Total send count " << global_total_send_count << std::endl;
+
+            std::cout << "Send count list [ ";
+            for (int i=0; i < nprocs; i++)
+            	std::cout << non_uniform_buffer.local_compute_output_size_flat[i] << ", ";
+            std::cout << "]" << std::endl;
+        }
 
         if (global_total_recv_count != global_total_send_count)
             MPI_Abort(MPI_COMM_WORLD, -1);
