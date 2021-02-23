@@ -6,6 +6,8 @@ static void uniform_benchmark(int ra_count, int nprocs, int epoch_count, u64 ent
 static void non_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int random_offset, int range);
 static void all_to_allv_test(all_to_allv_buffer non_uniform_buffer, MPI_Comm comm, double* all_to_all_time, double* buffer_create_time, double* buffer_delete_time, double *all_to_allv_time, int it, int nprocs, u64 entry_count, int random_offset, int range);
 
+static void complete_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int random_offset, int range);
+
 int main(int argc, char **argv)
 {
     mpi_comm mcomm;
@@ -55,6 +57,22 @@ int main(int argc, char **argv)
 
     for (u64 entry_count=2048; entry_count <= 16384; entry_count=entry_count*2)
         non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 0, 100);
+
+
+    MPI_Barrier(MPI_COMM_WORLD);
+        if (mcomm.get_rank() == 0)
+            std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+    for (u64 entry_count=2048; entry_count <= 16384; entry_count=entry_count*2)
+    	complete_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 60, 40);
+
+
+    MPI_Barrier(MPI_COMM_WORLD);
+        if (mcomm.get_rank() == 0)
+            std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+    for (u64 entry_count=2048; entry_count <= 16384; entry_count=entry_count*2)
+    	complete_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 50, 50);
 
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -384,3 +402,73 @@ static void all_to_allv_test(all_to_allv_buffer non_uniform_buffer, MPI_Comm com
     *buffer_delete_time = bt_d_end - bt_d_start;
 }
 #endif
+
+
+static void complete_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int random_offset, int range)
+{
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    all_to_allv_buffer non_uniform_buffer;
+    non_uniform_buffer.local_compute_output_size_flat = new int[nprocs * ra_count];
+
+    int max_random = 0;
+    for (int r=0; r < ra_count; r++)
+    {
+        for (int i=0; i < nprocs; i++)
+        {
+        	int random = random_offset + rand() % range;
+        	non_uniform_buffer.local_compute_output_size_flat[i * ra_count + r] = (entry_count * random) / 100;
+        	if (((entry_count * random) / 100) > max_random)
+        		max_random = (entry_count * random) / 100;
+        }
+    }
+
+    int max_send_count = 0;
+    MPI_Allreduce(&max_random, &max_send_count, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
+	all_to_all_buffer uniform_buffer;
+	uniform_buffer.local_compute_output = new u64[(ra_count * nprocs * max_send_count)];
+
+	u64 *cumulative_all_to_allv_buffer = new u64[(ra_count * nprocs * max_send_count)];
+
+    for (int it=0; it < ITERATION_COUNT; it++)
+    {
+    	double u_start = MPI_Wtime();
+		double buff_pop_start = MPI_Wtime();
+		for (u64 i=0; i < (ra_count * nprocs * max_send_count); i++)
+			uniform_buffer.local_compute_output[i] = i / (ra_count * max_send_count);
+		double buff_pop_end = MPI_Wtime();
+
+		double a2a_start = MPI_Wtime();
+		MPI_Alltoall(uniform_buffer.local_compute_output, (ra_count * max_send_count), MPI_UNSIGNED_LONG_LONG, cumulative_all_to_allv_buffer, (ra_count * max_send_count), MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+		double a2a_end = MPI_Wtime();
+
+		double u_end = MPI_Wtime();
+
+        double u_iter_buffer_time = buff_pop_end - buff_pop_start;
+        double u_iter_a2a_time = a2a_end - a2a_start;
+
+	    double max_u_time = 0;
+		double total_u_time = u_end - u_start;
+		MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+		if (total_u_time == max_u_time)
+		{
+			if (it == 0)
+			{
+				if (rank == 0)
+				    std::cout << "Max send count " << max_send_count  << ", total send count " << max_send_count * nprocs * nprocs << std::endl;
+
+				std::cout << "SKIP [CU] " << it << ", " << nprocs << " [ " << entry_count << " " << random_offset << " " << range <<  " ] CU time " << (u_end - u_start)
+						<< " [" << u_iter_buffer_time + u_iter_a2a_time << "] Buff pop " << u_iter_buffer_time << " a2a " << u_iter_a2a_time << std::endl;
+			}
+			else
+				std::cout << "[CU] " << it << ", " << nprocs << " [ " << entry_count << " " << random_offset << " " << range << " ] CU time " << (u_end - u_start)
+						<< " [" << u_iter_buffer_time + u_iter_a2a_time << "] Buff pop " << u_iter_buffer_time  << " a2a " << u_iter_a2a_time << std::endl;
+		}
+    }
+
+    delete[] non_uniform_buffer.local_compute_output_size_flat;
+    delete[] cumulative_all_to_allv_buffer;
+    delete[] uniform_buffer.local_compute_output;
+}
