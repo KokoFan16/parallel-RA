@@ -465,8 +465,10 @@ static void complete_uniform_benchmark(int ra_count, int nprocs, u64 entry_count
 		}
     }
 
+    u64 global_total_send_count = max_send_count * nprocs * nprocs;
+
     if(rank == 0)
-    	std::cout << "[Complete Uniform] Max send count " << max_send_count  << ", total send count " << (max_send_count * nprocs * nprocs) << std::endl;
+    	std::cout << "[Complete Uniform] Max send count " << max_send_count  << ", total send count " << global_total_send_count << std::endl;
 
     delete[] non_uniform_buffer.local_compute_output_size_flat;
     delete[] cumulative_all_to_allv_buffer;
