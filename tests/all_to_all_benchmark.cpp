@@ -456,9 +456,6 @@ static void complete_uniform_benchmark(int ra_count, int nprocs, u64 entry_count
 		{
 			if (it == 0)
 			{
-				if (rank == 0)
-				    std::cout << "[Complete Uniform] Max send count " << max_send_count  << ", total send count " << (max_send_count * nprocs * nprocs) << std::endl;
-
 				std::cout << "SKIP [CU] " << it << ", " << nprocs << " [ " << entry_count << " " << random_offset << " " << range <<  " ] CU time " << (u_end - u_start)
 						<< " [" << u_iter_buffer_time + u_iter_a2a_time << "] Buff pop " << u_iter_buffer_time << " a2a " << u_iter_a2a_time << std::endl;
 			}
@@ -467,6 +464,9 @@ static void complete_uniform_benchmark(int ra_count, int nprocs, u64 entry_count
 						<< " [" << u_iter_buffer_time + u_iter_a2a_time << "] Buff pop " << u_iter_buffer_time  << " a2a " << u_iter_a2a_time << std::endl;
 		}
     }
+
+    if(rank == 0)
+    	std::cout << "[Complete Uniform] Max send count " << max_send_count  << ", total send count " << (max_send_count * nprocs * nprocs) << std::endl;
 
     delete[] non_uniform_buffer.local_compute_output_size_flat;
     delete[] cumulative_all_to_allv_buffer;
