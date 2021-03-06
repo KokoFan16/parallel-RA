@@ -2,6 +2,7 @@
 #include <time.h>
 #include <algorithm>
 #include <iterator>
+#include <bitset>
 
 #define ITERATION_COUNT 1
 
@@ -513,8 +514,6 @@ static void bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count)
         double ata_time = ata_end - ata_start;
         double rotation_2_time = rotation_2_end - rotation_2_start;
 
-//        double total_find_blocks_time = 0, total_copy_time = 0, total_comm_time = 0, total_replace_time = 0;
-
         double max_u_time = 0;
         double total_u_time = u_end - u_start;
         MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
@@ -555,16 +554,7 @@ static void bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count)
                 std::cout << ")] " << rotation_2_time << std::endl;
             }
         }
-
-//		if (rank == 3)
-//		{
-//			for (u64 i=0; i < (local_count); i++)
-//				std::cout << i << ", " << local_compute_output[i] << std::endl;
-//		}
-
     }
-
-
 
     std::vector<u64>().swap(local_compute_output);
     std::vector<u64>().swap(cumulative_all_to_allv_buffer);
