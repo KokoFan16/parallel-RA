@@ -353,9 +353,11 @@ static void three_phases_uniform_benchmark(int ra_count, int nprocs, u64 entry_c
 		}
 
 		// 5. master rank assign data to each process on the same node
+        MPI_Request req_2[comm_count];
+        MPI_Status stat_2[comm_count];
 		double scatter_start = MPI_Wtime();
 		req_count = 0;
-		MPI_Irecv(local_compute_output.data(), local_count, MPI_UNSIGNED_LONG_LONG, master_rank, rank, MPI_COMM_WORLD, &req[req_count]);
+		MPI_Irecv(local_compute_output.data(), local_count, MPI_UNSIGNED_LONG_LONG, master_rank, rank, MPI_COMM_WORLD, &req_2[req_count]);
 		req_count++;
 
         if (rank == master_rank)
@@ -363,11 +365,11 @@ static void three_phases_uniform_benchmark(int ra_count, int nprocs, u64 entry_c
         	for (int i = 0; i < node_procs; i++)
         	{
         		int send_rank = node_id * node_procs + i;
-        		MPI_Isend(&cumulative_all_to_allv_buffer.data()[i*local_count], local_count, MPI_UNSIGNED_LONG_LONG, send_rank, send_rank, MPI_COMM_WORLD, &req[req_count]);
+        		MPI_Isend(&cumulative_all_to_allv_buffer.data()[i*local_count], local_count, MPI_UNSIGNED_LONG_LONG, send_rank, send_rank, MPI_COMM_WORLD, &req_2[req_count]);
         		req_count++;
         	}
         }
-        MPI_Waitall(req_count, req, stat);
+        MPI_Waitall(req_count, req_2, stat_2);
         double scatter_end = MPI_Wtime();
 
         double u_end = MPI_Wtime();
