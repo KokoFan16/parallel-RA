@@ -102,10 +102,10 @@ int main(int argc, char **argv)
 
     int entry_count = 512;
 //    for (u64 entry_count=2048; entry_count <= 16384; entry_count=entry_count*2)
-//    	bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
+    	bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
 
 
-    three_phases_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, node_procs);
+//    three_phases_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, node_procs);
 
 
 
@@ -276,7 +276,6 @@ static void three_phases_uniform_benchmark(int ra_count, int nprocs, u64 entry_c
         int comm_count = (rank == master_rank)? (node_procs + 1) : 1;
         MPI_Request req[comm_count];
         MPI_Status stat[comm_count];
-
         int req_count = 0;
         if (rank == master_rank)
         {
@@ -411,8 +410,12 @@ static void bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    std::vector<u64> local_compute_output(ra_count * nprocs * entry_count);
-    std::vector<u64> cumulative_all_to_allv_buffer(ra_count * nprocs * entry_count);
+    int unit_count = ra_count * entry_count;
+    int local_count = ra_count * nprocs * entry_count;
+
+    std::vector<u64> local_compute_output(local_count);
+    std::vector<u64> cumulative_all_to_allv_buffer(local_count);
+    std::vector<u64> temp_all_to_allv_buffer(local_count);
 
     for (int it=0; it < ITERATION_COUNT; it++)
     {
@@ -423,21 +426,24 @@ static void bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count)
 
 		// 1. local rotation
         double rotation_start = MPI_Wtime();
-        int send_count_pproc = ra_count * entry_count;
-        int shift_count = rank * send_count_pproc;
+        int shift_count = rank * unit_count;
         std::rotate(local_compute_output.begin(), local_compute_output.begin()+shift_count, local_compute_output.end());
         double rotation_end = MPI_Wtime();
 
-        // 2. isend and irecv
+
         int step = ceil(log2(nprocs));
+//        int k = 0;
         for (int k = 0; k < step; k++)
         {
+            // 2. find which data blocks to send
+        	double find_blocks_start = MPI_Wtime();
         	int recv_proc = rank - pow(2.0, k); // receive data from rank - 2^k process
         	int send_proc = rank + pow(2.0, k); // send data from rank + 2^k process
 
         	if (recv_proc < 0) recv_proc += nprocs; // boundary
+        	if (send_proc > nprocs - 1) send_proc -= nprocs; // boundary
 
-        	if (send_proc > nprocs) send_proc -= nprocs; // boundary
+//        	std::cout << rank << ", " << send_proc << ", " << recv_proc << "\n";
 
         	std::vector<int> send_indexes; // send all those data blocks whose kth (right to left) bit is 1
         	for (int i = 0; i < nprocs; i++)
@@ -447,32 +453,48 @@ static void bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count)
         		if (binary_rank[k_bit] == '1') // kth (right to left) bit is 1
         			send_indexes.push_back(i);
         	}
+        	double find_blocks_end = MPI_Wtime();
+
+        	// 3. copy blocks which need to be sent at this step
+        	double copy_start = MPI_Wtime();
+        	int send_N = send_indexes.size();
+        	for (int i = 0; i < send_N; i++)
+        	{
+        		int offset = send_indexes[i] * unit_count;
+        		memcpy(&temp_all_to_allv_buffer.data()[i*unit_count], &local_compute_output.data()[offset], unit_count*sizeof(long long));
+        	}
+        	double copy_end = MPI_Wtime();
+
+        	// 4. send and receive
+            MPI_Request req[2];
+            MPI_Status stat[2];
+        	int comm_count_per_step = send_N * unit_count;
+        	MPI_Irecv(cumulative_all_to_allv_buffer.data(), comm_count_per_step, MPI_UNSIGNED_LONG_LONG, recv_proc, recv_proc, MPI_COMM_WORLD, &req[0]);
+        	MPI_Isend(temp_all_to_allv_buffer.data(), comm_count_per_step, MPI_UNSIGNED_LONG_LONG, send_proc, rank, MPI_COMM_WORLD, &req[1]);
+        	MPI_Waitall(2, req, stat);
 
         	// length of all those data blocks to be sent
-        	int send_count_per_step = send_indexes.size() * send_count_pproc;
 
         }
 
         // 3. local inverse rotation
-        //        if (rank == 2)
-        //        {
-        //            for (u64 i=0; i < (ra_count * nprocs * entry_count); i++)
-        //                std::cout << i << ", " << local_compute_output[i] << std::endl;
-        //        }
+
+//		if (rank == 0)
+//		{
+//			for (u64 i=0; i < (send_N*unit_count); i++)
+//				std::cout << i << ", " << temp_all_to_allv_buffer[i] << ", " << cumulative_all_to_allv_buffer[i] << std::endl;
+//		}
 
     }
 
-    //	if (rank == 7)
-    //	{
-    //		for (u64 i=0; i < (local_count); i++)
-    //			std::cout << i << ", " << local_compute_output[i] << std::endl;
-    //	}
 
 
     std::vector<u64>().swap(local_compute_output);
     std::vector<u64>().swap(cumulative_all_to_allv_buffer);
+    std::vector<u64>().swap(temp_all_to_allv_buffer);
     local_compute_output.clear();
     cumulative_all_to_allv_buffer.clear();
+    temp_all_to_allv_buffer.clear();
 }
 
 
