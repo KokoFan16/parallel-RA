@@ -105,15 +105,25 @@ int main(int argc, char **argv)
     for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
     	uniform_ptp_benchmark(ra_count, mcomm.get_nprocs(), 1, entry_count);
 
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (mcomm.get_rank() == 0)
+        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+    {
+    	int epoch_count = (entry_count / 512 > 0)? (entry_count / 512): 1;
+    	uniform_ptp_benchmark(ra_count, mcomm.get_nprocs(), epoch_count, entry_count);
+    }
+
 //    for (u64 entry_count=4; entry_count <= 64; entry_count=entry_count*2)
 //        three_phases_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, node_procs);
 //
-//    MPI_Barrier(MPI_COMM_WORLD);
-//    if (mcomm.get_rank() == 0)
-//        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
-//
-//    for (u64 entry_count=4; entry_count <= 64; entry_count=entry_count*2)
-//    	bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (mcomm.get_rank() == 0)
+        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+    	bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
 
 
 
@@ -298,7 +308,7 @@ static void uniform_ptp_benchmark(int ra_count, int nprocs, int epoch_count, u64
 				req_count++;
 			}
 			MPI_Waitall(req_count, req, stat);
-//            MPI_Alltoall(uniform_buffer.local_compute_output, (uniform_buffer.ra_count * entry_count)/epoch_count, MPI_UNSIGNED_LONG_LONG, cumulative_all_to_allv_buffer, (uniform_buffer.ra_count * entry_count)/epoch_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+
             double a2a_end = MPI_Wtime();
 
             if (it == 0)
@@ -352,8 +362,6 @@ static void uniform_ptp_benchmark(int ra_count, int nprocs, int epoch_count, u64
 
             }
         }
-
-
     }
 
     delete[] cumulative_all_to_allv_buffer;
