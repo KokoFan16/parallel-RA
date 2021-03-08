@@ -94,7 +94,7 @@ int main(int argc, char **argv)
     if (mcomm.get_rank() == 0)
         std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-    for (u64 entry_count=1024; entry_count <= 4096; entry_count=entry_count*2)
+    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
 //        for (u32 epoch_count=1; epoch_count<=8; epoch_count=epoch_count*2)
     	uniform_benchmark(ra_count, mcomm.get_nprocs(), 1, entry_count);
 
@@ -102,14 +102,14 @@ int main(int argc, char **argv)
     if (mcomm.get_rank() == 0)
         std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-    for (u64 entry_count=1024; entry_count <= 4096; entry_count=entry_count*2)
+    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
     	uniform_ptp_benchmark(ra_count, mcomm.get_nprocs(), 1, entry_count);
 
     MPI_Barrier(MPI_COMM_WORLD);
     if (mcomm.get_rank() == 0)
         std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-    for (u64 entry_count=1024; entry_count <= 4096; entry_count=entry_count*2)
+    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
     {
     	int epoch_count = (entry_count / 512 > 0)? (entry_count / 512): 1;
     	uniform_ptp_benchmark(ra_count, mcomm.get_nprocs(), epoch_count, entry_count);
@@ -122,7 +122,7 @@ int main(int argc, char **argv)
     if (mcomm.get_rank() == 0)
         std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-    for (u64 entry_count=1024; entry_count <= 4096; entry_count=entry_count*2)
+    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
     	bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
 
 
