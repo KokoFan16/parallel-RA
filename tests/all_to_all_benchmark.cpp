@@ -94,26 +94,27 @@ int main(int argc, char **argv)
     if (mcomm.get_rank() == 0)
         std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
+    int epoch_count=1;
     for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
 //        for (u32 epoch_count=1; epoch_count<=8; epoch_count=epoch_count*2)
-    	uniform_benchmark(ra_count, mcomm.get_nprocs(), 1, entry_count);
+    	uniform_benchmark(ra_count, mcomm.get_nprocs(), epoch_count, entry_count);
 
     MPI_Barrier(MPI_COMM_WORLD);
     if (mcomm.get_rank() == 0)
         std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
     for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-    	uniform_ptp_benchmark(ra_count, mcomm.get_nprocs(), 1, entry_count);
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (mcomm.get_rank() == 0)
-        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
-
-    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-    {
-    	int epoch_count = (entry_count / 512 > 0)? (entry_count / 512): 1;
     	uniform_ptp_benchmark(ra_count, mcomm.get_nprocs(), epoch_count, entry_count);
-    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (mcomm.get_rank() == 0)
+        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+//    {
+//    	int epoch_count = (entry_count / 512 > 0)? (entry_count / 512): 1;
+//    	uniform_ptp_benchmark(ra_count, mcomm.get_nprocs(), epoch_count, entry_count);
+//    }
 
 //    for (u64 entry_count=4; entry_count <= 64; entry_count=entry_count*2)
 //        three_phases_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, node_procs);
@@ -273,7 +274,6 @@ static void uniform_ptp_benchmark(int ra_count, int nprocs, int epoch_count, u64
 
     uniform_buffer.local_compute_output = new u64[(uniform_buffer.ra_count * uniform_buffer.nprocs * entry_count)/epoch_count];
 
-
     u64 *cumulative_all_to_allv_buffer = new u64[(uniform_buffer.ra_count * uniform_buffer.nprocs * entry_count)/epoch_count];
 
     for (int it=0; it < ITERATION_COUNT; it++)
@@ -301,10 +301,14 @@ static void uniform_ptp_benchmark(int ra_count, int nprocs, int epoch_count, u64
 			for (int i = 0; i < nprocs; i++)
 			{
 				int comm_p = (rank + i) % nprocs; // avoid always to reach first master node
-				MPI_Irecv(&uniform_buffer.local_compute_output[comm_p*exchange_count], exchange_count, MPI_UNSIGNED_LONG_LONG, comm_p, comm_p, MPI_COMM_WORLD, &req[req_count]);
+				MPI_Irecv(&uniform_buffer.local_compute_output[comm_p*exchange_count], exchange_count, MPI_UNSIGNED_LONG_LONG, comm_p, 0, MPI_COMM_WORLD, &req[req_count]);
 				req_count++;
+			}
 
-				MPI_Isend(&cumulative_all_to_allv_buffer[comm_p*exchange_count], exchange_count, MPI_UNSIGNED_LONG_LONG, comm_p, rank, MPI_COMM_WORLD, &req[req_count]);
+			for (int i = 0; i < nprocs; i++)
+			{
+				int comm_p = (rank + i) % nprocs;
+				MPI_Isend(&cumulative_all_to_allv_buffer[comm_p*exchange_count], exchange_count, MPI_UNSIGNED_LONG_LONG, comm_p, 0, MPI_COMM_WORLD, &req[req_count]);
 				req_count++;
 			}
 			MPI_Waitall(req_count, req, stat);
@@ -572,13 +576,19 @@ static void bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count)
         	if (send_proc > nprocs - 1) send_proc -= nprocs; // boundary
 
         	std::vector<int> send_indexes; // send all those data blocks whose kth (right to left) bit is 1
-        	for (int i = 0; i < nprocs; i++)
+//        	for (int i = 0; i < nprocs; i++)
+//        	{
+//        		std::string binary_rank = std::bitset<8>(i).to_string(); // convert to binary
+//        		int k_bit = (binary_rank.length() - k - 1); // kth bit
+//        		if (binary_rank[k_bit] == '1') // kth (right to left) bit is 1
+//        			send_indexes.push_back(i);
+//        	}
+        	for (int i = 1; i < nprocs; i++)
         	{
-        		std::string binary_rank = std::bitset<8>(i).to_string(); // convert to binary
-        		int k_bit = (binary_rank.length() - k - 1); // kth bit
-        		if (binary_rank[k_bit] == '1') // kth (right to left) bit is 1
+        		if (i & (1 << k))
         			send_indexes.push_back(i);
         	}
+
         	double find_blocks_end = MPI_Wtime();
         	double find_blocks_time = find_blocks_end - find_blocks_start;
         	find_blocks_times[k] = find_blocks_time;
