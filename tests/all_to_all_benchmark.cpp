@@ -269,8 +269,6 @@ static void uniform_ptp_benchmark(int ra_count, int nprocs, u64 entry_count)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     all_to_all_buffer uniform_buffer;
-//    uniform_buffer.nprocs = nprocs;//mcomm.get_nprocs();
-//    uniform_buffer.ra_count = ra_count;//atoi(argv[1]);
 
     u64 unit_count = ra_count * entry_count;
     uniform_buffer.local_compute_output = new u64[(unit_count * nprocs)];
@@ -292,18 +290,34 @@ static void uniform_ptp_benchmark(int ra_count, int nprocs, u64 entry_count)
 		double a2a_start = MPI_Wtime();
 		MPI_Request* req = (MPI_Request*)malloc(2 * nprocs * sizeof(MPI_Request));
 		MPI_Status* stat = (MPI_Status*)malloc(2 * nprocs * sizeof(MPI_Status));
+
+//		if (unit_count < 1024)
+//		{
 		for (int i = 0; i < nprocs; i++)
 		{
 			int comm_p = (rank + i) % nprocs; // avoid always to reach first master node
-			MPI_Irecv(&uniform_buffer.local_compute_output[comm_p*unit_count], unit_count, MPI_UNSIGNED_LONG_LONG, comm_p, 0, MPI_COMM_WORLD, &req[i]);
+			MPI_Irecv(&cumulative_all_to_allv_buffer[comm_p*unit_count], unit_count, MPI_UNSIGNED_LONG_LONG, comm_p, 0, MPI_COMM_WORLD, &req[i]);
 		}
 
 		for (int i = 0; i < nprocs; i++)
 		{
 			int comm_p = (rank + i) % nprocs;
-			MPI_Isend(&cumulative_all_to_allv_buffer[comm_p*unit_count], unit_count, MPI_UNSIGNED_LONG_LONG, comm_p, 0, MPI_COMM_WORLD, &req[i+nprocs]);
+			MPI_Isend(&uniform_buffer.local_compute_output[comm_p*unit_count], unit_count, MPI_UNSIGNED_LONG_LONG, comm_p, 0, MPI_COMM_WORLD, &req[i+nprocs]);
 		}
 		MPI_Waitall(2 * nprocs, req, stat);
+//		}
+//		else
+//		{
+//			for (int i=1; i<nprocs; i++)
+//			{
+//				int src, dst;
+//				src = dst = rank ^ i;
+//				int MPI_Sendrecv(&cumulative_all_to_allv_buffer[dst*unit_count], int sendcount, MPI_Datatype sendtype,
+//				                 int dest, int sendtag,
+//				                 void *recvbuf, int recvcount, MPI_Datatype recvtype,
+//				                 int source, int recvtag, MPI_Comm comm, MPI_Status * status)
+//			}
+//		}
 		double a2a_end = MPI_Wtime();
 		free(req);
 		free(stat);
