@@ -636,8 +636,6 @@ static void modified_bruck_non_uniform_benchmark(int ra_count, int nprocs, u64 e
 {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    double nu_start = MPI_Wtime();
 	int* local_compute_output_size_flat = new int[nprocs * ra_count];
 
 	// 1. non uniform send count array
@@ -660,6 +658,7 @@ static void modified_bruck_non_uniform_benchmark(int ra_count, int nprocs, u64 e
 
 	for (int it=0; it < ITERATION_COUNT; it++)
 	{
+	    double nu_start = MPI_Wtime();
 		// 2. initial buffer
 		double buff_pop_start = MPI_Wtime();
 		u64* local_compute_output = new u64[total_send_count];
@@ -719,12 +718,12 @@ static void modified_bruck_non_uniform_benchmark(int ra_count, int nprocs, u64 e
 		{
 			if (it == 0)
 			{
-				std::cout << "SKIP [BNU] " << it << ", " << nprocs << " [" << entry_count <<  "] BU time " << total_nu_time << " " << uniform_count_time << " "
+				std::cout << "SKIP [BNU] " << it << ", " << nprocs << " [" << entry_count <<  "] BU time " << total_nu_time << " "
 								<< buff_pop_time << ", " << padding_time << ", " << bruck_time << ", " << filter_time << std::endl;
 			}
 			else
 			{
-				std::cout << "[BNU] " << it << ", " << nprocs << " [" << entry_count <<  "] BU time " << total_nu_time << " " << uniform_count_time << " "
+				std::cout << "[BNU] " << it << ", " << nprocs << " [" << entry_count <<  "] BU time " << total_nu_time << " "
 								<< buff_pop_time << ", " << padding_time << ", " << bruck_time << ", " << filter_time << std::endl;
 			}
 		}
@@ -1394,10 +1393,10 @@ static void all_to_allv_test(all_to_allv_buffer non_uniform_buffer, MPI_Comm com
         {
             std::cout << "[Non Uniform] " << nprocs << " , " << entry_count << " , " << random_offset << " , "  << range << " ,  Total recv count " << global_total_recv_count  << " Total send count " << global_total_send_count << std::endl;
 
-            std::cout << "Send count list [ ";
-            for (int i=0; i < nprocs; i++)
-            	std::cout << non_uniform_buffer.local_compute_output_size_flat[i] << ", ";
-            std::cout << "]" << std::endl;
+//            std::cout << "Send count list [ ";
+//            for (int i=0; i < nprocs; i++)
+//            	std::cout << non_uniform_buffer.local_compute_output_size_flat[i] << ", ";
+//            std::cout << "]" << std::endl;
         }
 
         if (global_total_recv_count != global_total_send_count)
