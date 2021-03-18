@@ -4,7 +4,7 @@
 #include <iterator>
 #include <bitset>
 
-#define ITERATION_COUNT 3
+#define ITERATION_COUNT 5
 
 static void uniform_benchmark(int ra_count, int nprocs, int epoch_count, u64 entry_count);
 static void non_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int random_offset, int range);
@@ -15,6 +15,7 @@ static void three_phases_uniform_benchmark(int ra_count, int nprocs, u64 entry_c
 static void uniform_ptp_benchmark(int ra_count, int nprocs, u64 entry_count);
 
 static void naive_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype, MPI_Comm comm);
+static void datatype_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm);
 static void modified_bruck_uniform_benchmark(u64* local_compute_output, int ra_count, int nprocs, u64 entry_count, int it);
 static void modified_bruck_2_uniform_benchmark(int ra_count, int nprocs, u64 entry_count);
 static void zero_copy_bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count);
@@ -171,16 +172,26 @@ int main(int argc, char **argv)
 		std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
 
+	for (int it=0; it < ITERATION_COUNT; it++)
+	{
+		for (u64 i=0; i < local_count; i++)
+			send_buffer[i] = i / entry_count + rank * 10;
 
-//	if (rank == 4)
+		datatype_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (mcomm.get_rank() == 0)
+		std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+
+//	if (rank == 2)
 //	{
 //		for (int i = 0; i < local_count; i++)
 //		{
 //			std::cout << recv_buffer[i] << "\n";
 //		}
 //	}
-
-
 
     delete[] send_buffer;
     delete[] recv_buffer;
@@ -422,6 +433,91 @@ static void naive_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_Data
 }
 
 
+// create datatype
+static void datatype_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm)
+{
+	double u_start = MPI_Wtime();
+
+    int rank, nprocs;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+    int typesize;
+    MPI_Type_size(sendtype, &typesize);
+
+    u64 unit_size = sendcount * typesize;
+    u64 local_size = sendcount * nprocs * typesize;
+
+	// 1. local rotation
+	double rotation_start = MPI_Wtime();
+	memcpy(recvbuf, sendbuf, local_size);
+	for (int i = 0; i < nprocs; i++)
+	{
+		int index = (i - rank + nprocs) % nprocs;
+		memcpy(&sendbuf[index*unit_size], &recvbuf[i*unit_size], unit_size);
+	}
+    double rotation_end = MPI_Wtime();
+    double rotation_time = rotation_end - rotation_start;
+
+    // 2. exchange data
+    double exchange_start =  MPI_Wtime();
+    double total_create_dt_time = 0, total_comm_time = 0;
+    for (int k = 1; k < nprocs; k <<= 1)
+    {
+		// 1) create data type
+    	double create_datatype_start = MPI_Wtime();
+		int displs[(nprocs+1)/2];
+		int sendb_num = 0;
+		for (int i = 1; i < nprocs; i++)
+		{
+			if (i & k)
+				displs[sendb_num++] = i*unit_size;
+		}
+    	MPI_Datatype send_type;
+//    	MPI_Type_vector(block_count, k*unit_size, (k<<1)*unit_size, MPI_CHAR, &vector_type);
+    	MPI_Type_create_indexed_block(sendb_num, unit_size, displs,MPI_CHAR, &send_type);
+    	MPI_Type_commit(&send_type);
+    	int packsize;
+    	MPI_Pack_size(1, send_type, MPI_COMM_WORLD, &packsize);
+    	double create_datatype_end = MPI_Wtime();
+    	total_create_dt_time += create_datatype_end - create_datatype_start;
+
+    	// 2) exchange data
+    	double comm_start = MPI_Wtime();
+    	int recv_proc = (rank - k + nprocs) % nprocs; // receive data from rank - 2^step process
+    	int send_proc = (rank + k) % nprocs; // send data from rank + 2^k process
+    	MPI_Sendrecv(sendbuf, 1, send_type, send_proc, 0, recvbuf, packsize, MPI_PACKED, recv_proc, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    	int pos = 0;
+    	MPI_Unpack(recvbuf, packsize, &pos, sendbuf, 1, send_type, MPI_COMM_WORLD);
+    	MPI_Type_free(&send_type);
+		double comm_end = MPI_Wtime();
+		total_comm_time += (comm_end - comm_start);
+    }
+	double exchange_end = MPI_Wtime();
+	double exchange_time = exchange_end - exchange_start;
+
+	// 3. second rotation
+	double revs_rotation_start = MPI_Wtime();
+	for (int i = 0; i < nprocs; i++)
+	{
+		int index = (rank - i + nprocs) % nprocs;
+		memcpy(&recvbuf[index*unit_size], &sendbuf[i*unit_size], unit_size);
+	}
+	double revs_rotation_end = MPI_Wtime();
+	double revs_rotation_time = revs_rotation_end - revs_rotation_start;
+
+    double u_end = MPI_Wtime();
+	double max_u_time = 0;
+	double total_u_time = u_end - u_start;
+	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+	if (total_u_time == max_u_time)
+	{
+		 std::cout << "[DTBruck] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
+				 << total_create_dt_time << " " << total_comm_time << "] " << revs_rotation_time << std::endl;
+	}
+}
+
+
 static void modified_bruck_uniform_benchmark(u64* local_compute_output, int ra_count, int nprocs, u64 entry_count, int it)
 {
     int rank;
@@ -553,6 +649,17 @@ static void modified_bruck_uniform_benchmark(u64* local_compute_output, int ra_c
 
 	delete[] cumulative_all_to_allv_buffer;
 	delete[] temp_all_to_allv_buffer;
+
+	//	if (rank == 2)
+	//	{
+	//		for (int i = 0; i < sendcount * nprocs; i++)
+	//		{
+	//			u64 a;
+	//			memcpy(&a, &recvbuf[i*typesize],typesize);
+	//			std::cout << a << "\n";
+	//		}
+	//	}
+
 }
 
 
