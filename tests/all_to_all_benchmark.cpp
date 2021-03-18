@@ -4,17 +4,17 @@
 #include <iterator>
 #include <bitset>
 
-#define ITERATION_COUNT 3
+#define ITERATION_COUNT 1
 
 static void uniform_benchmark(int ra_count, int nprocs, int epoch_count, u64 entry_count);
 static void non_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int random_offset, int range);
 static void all_to_allv_test(all_to_allv_buffer non_uniform_buffer, MPI_Comm comm, double* all_to_all_time, double* buffer_create_time, double* buffer_delete_time, double *all_to_allv_time, int it, int nprocs, u64 entry_count, int random_offset, int range);
 
 static void complete_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int random_offset, int range);
-static void bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count);
 static void three_phases_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int node_procs);
 static void uniform_ptp_benchmark(int ra_count, int nprocs, u64 entry_count);
-//static void modified_bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count);
+
+static void naive_bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count);
 static void modified_bruck_2_uniform_benchmark(int ra_count, int nprocs, u64 entry_count);
 static void zero_copy_bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count);
 
@@ -29,48 +29,48 @@ int main(int argc, char **argv)
     srand (time(NULL));
     u32 ra_count = 1;
 
-    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 90, 10);
-
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (mcomm.get_rank() == 0)
-        std::cout << "----------------------------------------------------------------" << std::endl << std::endl;
-
-    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 80, 20);
-
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (mcomm.get_rank() == 0)
-        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
-
-    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 70, 30);
-
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (mcomm.get_rank() == 0)
-        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
-
-    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 60, 40);
-
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (mcomm.get_rank() == 0)
-        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
-
-    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 50, 50);
-
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (mcomm.get_rank() == 0)
-        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
-
-    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 0, 100);
+//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+//        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 90, 10);
+//
+//
+//    MPI_Barrier(MPI_COMM_WORLD);
+//    if (mcomm.get_rank() == 0)
+//        std::cout << "----------------------------------------------------------------" << std::endl << std::endl;
+//
+//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+//        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 80, 20);
+//
+//
+//    MPI_Barrier(MPI_COMM_WORLD);
+//    if (mcomm.get_rank() == 0)
+//        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+//
+//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+//        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 70, 30);
+//
+//
+//    MPI_Barrier(MPI_COMM_WORLD);
+//    if (mcomm.get_rank() == 0)
+//        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+//
+//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+//        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 60, 40);
+//
+//
+//    MPI_Barrier(MPI_COMM_WORLD);
+//    if (mcomm.get_rank() == 0)
+//        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+//
+//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+//        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 50, 50);
+//
+//
+//    MPI_Barrier(MPI_COMM_WORLD);
+//    if (mcomm.get_rank() == 0)
+//        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+//
+//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+//        non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 0, 100);
 
 //    MPI_Barrier(MPI_COMM_WORLD);
 //        if (mcomm.get_rank() == 0)
@@ -88,18 +88,18 @@ int main(int argc, char **argv)
 //    	complete_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 50, 50);
 
 
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (mcomm.get_rank() == 0)
-        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
-
-    int epoch_count=1;
-    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-//        for (u32 epoch_count=1; epoch_count<=8; epoch_count=epoch_count*2)
-    	uniform_benchmark(ra_count, mcomm.get_nprocs(), epoch_count, entry_count);
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (mcomm.get_rank() == 0)
-        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+//    MPI_Barrier(MPI_COMM_WORLD);
+//    if (mcomm.get_rank() == 0)
+//        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+//
+//    int epoch_count=1;
+//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+////        for (u32 epoch_count=1; epoch_count<=8; epoch_count=epoch_count*2)
+//    	uniform_benchmark(ra_count, mcomm.get_nprocs(), epoch_count, entry_count);
+//
+//    MPI_Barrier(MPI_COMM_WORLD);
+//    if (mcomm.get_rank() == 0)
+//        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
 //    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
 //    	uniform_ptp_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
@@ -108,10 +108,11 @@ int main(int argc, char **argv)
 //    if (mcomm.get_rank() == 0)
 //        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-    	modified_bruck_non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 50, 50);
+//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
+//    	modified_bruck_non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 50, 50);
 //    modified_bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
-//    modified_bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
+    u64 entry_count=4;
+    zero_copy_bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
 
 //    for (u64 entry_count=4; entry_count <= 64; entry_count=entry_count*2)
 //        three_phases_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, node_procs);
@@ -259,80 +260,8 @@ static void uniform_benchmark(int ra_count, int nprocs, int epoch_count, u64 ent
 #endif
 
 
-
-static void uniform_ptp_benchmark(int ra_count, int nprocs, u64 entry_count)
-{
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-    all_to_all_buffer uniform_buffer;
-
-    u64 unit_count = ra_count * entry_count;
-    uniform_buffer.local_compute_output = new u64[(unit_count * nprocs)];
-    u64 *cumulative_all_to_allv_buffer = new u64[(unit_count * nprocs)];
-
-    for (int it=0; it < ITERATION_COUNT; it++)
-    {
-        double u_iter_buffer_time;
-        double u_iter_a2a_time;
-        double u_start = MPI_Wtime();
-
-        u64 global_cumulativ_send_count = 0;
-
-		double buff_pop_start = MPI_Wtime();
-		for (u64 i=0; i < (ra_count * nprocs * entry_count); i++)
-			uniform_buffer.local_compute_output[i] = i / (ra_count * entry_count);
-		double buff_pop_end = MPI_Wtime();
-
-		double a2a_start = MPI_Wtime();
-		MPI_Request* req = (MPI_Request*)malloc(2 * nprocs * sizeof(MPI_Request));
-		MPI_Status* stat = (MPI_Status*)malloc(2 * nprocs * sizeof(MPI_Status));
-		for (int i = 0; i < nprocs; i++)
-		{
-			int comm_p = (rank + i) % nprocs; // avoid always to reach first master node
-			MPI_Irecv(&cumulative_all_to_allv_buffer[comm_p*unit_count], unit_count, MPI_UNSIGNED_LONG_LONG, comm_p, 0, MPI_COMM_WORLD, &req[i]);
-		}
-
-		for (int i = 0; i < nprocs; i++)
-		{
-			int comm_p = (rank + i) % nprocs;
-			MPI_Isend(&uniform_buffer.local_compute_output[comm_p*unit_count], unit_count, MPI_UNSIGNED_LONG_LONG, comm_p, 0, MPI_COMM_WORLD, &req[i+nprocs]);
-		}
-		MPI_Waitall(2 * nprocs, req, stat);
-		free(req);
-		free(stat);
-		double a2a_end = MPI_Wtime();
-
-		u_iter_buffer_time = buff_pop_end-buff_pop_start;
-		u_iter_a2a_time = a2a_end-a2a_start;
-
-		double u_end = MPI_Wtime();
-
-		double max_u_time = 0;
-		double total_u_time = u_end - u_start;
-		MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-		if (total_u_time == max_u_time)
-		{
-			if (it == 0)
-			{
-				std::cout << "SKIP [PU] " << rank << ", " << nprocs << " [ " << entry_count << " ] PU time " << (u_end - u_start) << " ";
-				std::cout << u_iter_buffer_time << " " << u_iter_a2a_time << " " << std::endl;
-			}
-			else
-			{
-				std::cout << "[PU] " << rank << ", " << nprocs << " [ " << entry_count << " ] PU time " << (u_end - u_start) << " ";
-				std::cout << u_iter_buffer_time << " " << u_iter_a2a_time << std::endl;
-			}
-		}
-    }
-
-
-    delete[] cumulative_all_to_allv_buffer;
-    delete[] uniform_buffer.local_compute_output;
-}
-
-
-static void bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count)
+// naive bruck (without any datatype)
+static void naive_bruck_uniform_benchmark(int ra_count, int nprocs, u64 entry_count)
 {
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -671,7 +600,7 @@ static void modified_bruck_non_uniform_benchmark(int ra_count, int nprocs, u64 e
 		double buff_pop_end = MPI_Wtime();
 		double buff_pop_time = buff_pop_end - buff_pop_start;
 
-		// 3. padding buffer with max send cout
+		// 3. padding buffer with max send count
 		double padding_start = MPI_Wtime();
 		int max_send_count = 0;
 		MPI_Allreduce(&max_random, &max_send_count, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
@@ -755,105 +684,101 @@ static void zero_copy_bruck_uniform_benchmark(int ra_count, int nprocs, u64 entr
             local_compute_output[i] = i / unit_count + rank * 10;
         memcpy(temp_all_to_allv_buffer, local_compute_output, local_count*sizeof(u64));
         double buff_pop_end = MPI_Wtime();
+        double buff_pop_time = buff_pop_end - buff_pop_start;
 
         // 2. local rotation
         double rotation_start = MPI_Wtime();
         for (int i = 0; i < nprocs; i++)
         {
-        	int index = 2*rank - i;
-        	if (index < 0) index += nprocs;
-        	if (index > nprocs - 1) index -= nprocs;
-
+        	int index = (2*rank - i + nprocs) % nprocs;
         	memcpy(&local_compute_output[index*unit_count], &temp_all_to_allv_buffer[i*unit_count], unit_count*sizeof(u64));
         }
         double rotation_end = MPI_Wtime();
+        double rotation_time = rotation_end - rotation_start;
 
-        // 3. all to all
-        double ata_start = MPI_Wtime();
-        int step = ceil(log2(nprocs));
-        double find_blocks_times[step];
-        double copy_times[step];
-		double comm_times[step];
-		double replace_times[step];
-		double total_find_blocks_time = 0, total_copy_time = 0, total_comm_time = 0, total_replace_time = 0;
+        // 3. initial data to recv_buffer and intermediate buffer
+        double initial_start = MPI_Wtime();
+		memcpy(cumulative_all_to_allv_buffer, local_compute_output, local_count*sizeof(u64));
+		memcpy(temp_all_to_allv_buffer, local_compute_output, local_count*sizeof(u64));
 
 		int bits[nprocs];
-		bits[0] = 0;
+		bits[0] = 0; // the number of bits k' > k
 		for (int j = 1; j < nprocs; j++) bits[j] = bits[j>>1]+(j&0x1);
 
-		int recvblocks[nprocs];
+		double initial_end = MPI_Wtime();
+		double initial_time = initial_end - initial_start;
+
+		// 4. create data type
+		int commblocks[nprocs];
+		MPI_Datatype commtypes[nprocs];
 		MPI_Aint recvindex[nprocs];
-		MPI_Datatype recvtypes[nprocs];
-		int sendblocks[nprocs];
 		MPI_Aint sendindex[nprocs];
-		MPI_Datatype sendtypes[nprocs];
 		int commsize = unit_count * sizeof(u64);
+
+		double total_datatype_time = 0, total_comm_time = 0;
+
 		unsigned int mask = 0xFFFFFFFF;
 		int b, j;
 		for (int k = 1; k < nprocs; k <<= 1)
 		{
+			double create_datatype_start = MPI_Wtime();
 			b = 0; j = k;
 			while (j < nprocs)
 			{
-				int sendrank = (rank - j + nprocs) % nprocs;
-				int recvrank = (rank + j) % nprocs;
-				recvblocks[b] = unit_count;
-				recvtypes[b] = MPI_UNSIGNED_LONG_LONG;
-				sendblocks[b] = unit_count;
-				sendtypes[b] = MPI_UNSIGNED_LONG_LONG;
+				int index = (rank + j) % nprocs;
+				commblocks[b] = unit_count;
+				commtypes[b] = MPI_UNSIGNED_LONG_LONG;
 
 				if ((bits[j&mask]&0x1)==0x1) // send to recvbuf when the number of bits k' > k is odd
 				{
-					recvindex[b] = (MPI_Aint)((char*)local_compute_output+recvrank*commsize);
+					recvindex[b] = (MPI_Aint)((char*)cumulative_all_to_allv_buffer+index*commsize);
 
 					if ((j & mask) == j) // recv from sendbuf when the number of bits k' > k is even
-						sendindex[b] = (MPI_Aint)((char*)local_compute_output+sendrank*commsize);
+					{
+						sendindex[b] = (MPI_Aint)((char*)local_compute_output+index*commsize);
+					}
 					else // from intermediate buffer
-						sendindex[b] = (MPI_Aint)(cumulative_all_to_allv_buffer+j*commsize);
+					{
+						sendindex[b] = (MPI_Aint)((char*)temp_all_to_allv_buffer+index*commsize);
+					}
 				}
 				else // send to intermediate buffer
 				{
-					recvindex[b] = (MPI_Aint)(cumulative_all_to_allv_buffer+j*commsize);
+					recvindex[b] = (MPI_Aint)((char*)temp_all_to_allv_buffer+index*commsize);
 
 					if ((j & mask) == j) // recv from sendbuf when the number of bits k' > k is even
-						sendindex[b] = (MPI_Aint)((char*)local_compute_output+sendrank*commsize);
+						sendindex[b] = (MPI_Aint)((char*)local_compute_output+index*commsize);
 					else
-						sendindex[b] = (MPI_Aint)((char*)local_compute_output+recvrank*commsize);
+						sendindex[b] = (MPI_Aint)((char*)cumulative_all_to_allv_buffer+index*commsize);
 				}
 				b++;
 				j++; if ((j & k) != k) j += k; // data blocks whose kth bit is 1
 			}
 
 			MPI_Datatype sendblocktype;
-			MPI_Type_create_struct(b, sendblocks, sendindex, sendtypes, &sendblocktype);
+			MPI_Type_create_struct(b, commblocks, sendindex, commtypes, &sendblocktype);
 			MPI_Type_commit(&sendblocktype);
 			MPI_Datatype recvblocktype;
-			MPI_Type_create_struct(b,recvblocks, recvindex, recvtypes, &recvblocktype);
+			MPI_Type_create_struct(b,commblocks, recvindex, commtypes, &recvblocktype);
 			MPI_Type_commit(&recvblocktype);
 
+			double create_datatype_end = MPI_Wtime();
+			total_datatype_time += (create_datatype_end - create_datatype_start);
+
+			double comm_start = MPI_Wtime();
 			int sendrank = (rank - k + nprocs) % nprocs;
 			int recvrank = (rank + k) % nprocs;
-			MPI_Sendrecv(NULL, 1, sendblocktype, sendrank, 0, NULL, 1, recvblocktype, recvrank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			MPI_Sendrecv(MPI_BOTTOM, 1, sendblocktype, sendrank, 0, MPI_BOTTOM, 1, recvblocktype, recvrank, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 			MPI_Type_free(&recvblocktype);
 			MPI_Type_free(&sendblocktype);
+			double comm_end = MPI_Wtime();
+			total_comm_time += (comm_end - comm_start);
 
 			mask <<= 1;
 		}
 
-//		if (rank == 0)
-//		{
-//			for (int i = 0; i < local_count; i++)
-//				std::cout << local_compute_output[i] << "\n";
-//		}
-
-		double ata_end = MPI_Wtime();
 		double u_end = MPI_Wtime();
-
-		double buff_pop_time = buff_pop_end - buff_pop_start;
-		double rotation_time = rotation_end - rotation_start;
-		double ata_time = ata_end - ata_start;
-
 		double max_u_time = 0;
 		double total_u_time = u_end - u_start;
 		MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
@@ -862,36 +787,12 @@ static void zero_copy_bruck_uniform_benchmark(int ra_count, int nprocs, u64 entr
 			if (it == 0)
 			{
 				std::cout << "SKIP [BU] " << it << ", " << nprocs << " [" << entry_count <<  "] BU time " << total_u_time << " " << buff_pop_time << " " << rotation_time << " "
-						<< ata_time << " [ " << total_find_blocks_time << " ( ";
-				for (int i = 0; i < step; i++)
-					std::cout << find_blocks_times[i] << " ";
-				std::cout << ") " << total_copy_time << " ( ";
-				for (int i = 0; i < step; i++)
-					std::cout << copy_times[i] << " ";
-				std::cout << ") " << total_comm_time << " ( ";
-				for (int i = 0; i < step; i++)
-					std::cout << comm_times[i] << " ";
-				std::cout << ") " << total_replace_time << " ( ";
-				for (int i = 0; i < step; i++)
-					std::cout << replace_times[i] << " ";
-				std::cout << ")] " << std::endl;
+						<< initial_time << " " << total_datatype_time << " " << total_comm_time << std::endl;
 			}
 			else
 			{
-				std::cout << "[BU] " << it << ", " << nprocs << " [" << entry_count <<  "] BU time " << total_u_time << " " << buff_pop_time << " " << rotation_time << " "
-						<< ata_time << " [ " << total_find_blocks_time << " ( ";
-				for (int i = 0; i < step; i++)
-					std::cout << find_blocks_times[i] << " ";
-				std::cout << ") " << total_copy_time << " ( ";
-				for (int i = 0; i < step; i++)
-					std::cout << copy_times[i] << " ";
-				std::cout << ") " << total_comm_time << " ( ";
-				for (int i = 0; i < step; i++)
-					std::cout << comm_times[i] << " ";
-				std::cout << ") " << total_replace_time << " ( ";
-				for (int i = 0; i < step; i++)
-					std::cout << replace_times[i] << " ";
-				std::cout << ")] " << std::endl;
+				std::cout << "SKIP [BU] " << it << ", " << nprocs << " [" << entry_count <<  "] BU time " << total_u_time << " " << buff_pop_time << " " << rotation_time << " "
+										<< initial_time << " " << total_datatype_time << " " << total_comm_time << std::endl;
 			}
 		}
     }
@@ -1073,162 +974,7 @@ static void modified_bruck_2_uniform_benchmark(int ra_count, int nprocs, u64 ent
 
 
 
-static void three_phases_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int node_procs)
-{
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    int node_id = rank / node_procs;
-    int master_rank = node_id * node_procs; // 0 * 64, 1 * 64
-
-    u64 unit_count = ra_count * entry_count;
-    u64 local_count = unit_count * nprocs;
-    std::vector<u64> local_compute_output(local_count);
-
-    std::vector<u64> node_all_to_all_buffer;
-    std::vector<u64> cumulative_all_to_allv_buffer;
-
-    for (int it=0; it < ITERATION_COUNT; it++)
-    {
-    	double u_start = MPI_Wtime();
-
-        double buff_pop_start = MPI_Wtime();
-        for (u64 i=0; i < local_count; i++)
-            local_compute_output[i] = i / (unit_count);
-        double buff_pop_end = MPI_Wtime();
-
-        // 1. gather data from other process on the same node to one master rank on that node
-        double gather_node_procs_start = MPI_Wtime();
-        int comm_count = (rank == master_rank)? (node_procs + 1) : 1;
-        MPI_Request req[comm_count];
-        MPI_Status stat[comm_count];
-        int req_count = 0;
-        if (rank == master_rank)
-        {
-        	node_all_to_all_buffer.reserve(local_count * node_procs);
-        	cumulative_all_to_allv_buffer.reserve(local_count * node_procs);
-
-        	for (int i = 0; i < node_procs; i++)
-        	{
-        		int recv_rank = node_id * node_procs + i;  // 3 * 64 + (0 ~ 64)
-        		MPI_Irecv(&node_all_to_all_buffer.data()[i*local_count], local_count, MPI_UNSIGNED_LONG_LONG, recv_rank, recv_rank, MPI_COMM_WORLD, &req[req_count]);
-        		req_count++;
-        	}
-        }
-
-        MPI_Isend(local_compute_output.data(), local_count, MPI_UNSIGNED_LONG_LONG, master_rank, rank, MPI_COMM_WORLD, &req[req_count]);
-		req_count++;
-		MPI_Waitall(req_count, req, stat);
-		double gather_node_procs_end = MPI_Wtime();
-
-
-		double reorder_time = 0, ata_time = 0, reorder_2_time = 0;
-		u64 blocklength = unit_count * node_procs;
-		int node_num = nprocs / node_procs;
-		if (rank == master_rank)
-		{
-	        // 2. exchange order of buffer
-			//    e.g., 0 2 [0 1 2 3 0 1 2 3] to [0 1 0 1 2 3 2 3] (each process [0 1 2 3])
-			double reorder_start = MPI_Wtime();
-			for (int i = 0; i < node_num; i++)
-			{
-				for (int j = 0; j < node_procs; j++)
-				{
-					int offset = j * local_count + i * blocklength;
-					int index = i * node_procs + j;
-					memcpy(&cumulative_all_to_allv_buffer.data()[index * blocklength], &node_all_to_all_buffer.data()[offset], blocklength * sizeof(long long));
-				}
-			}
-			double reorder_end = MPI_Wtime();
-			reorder_time = reorder_end - reorder_start;
-
-			// 3. all to all communication across all the master ranks
-			double ata_start = MPI_Wtime();
-			req_count = 0;
-			MPI_Request req_1[2*node_num];
-			MPI_Status stat_1[2*node_num];
-			u64 exchange_count = blocklength * node_procs;
-			for (int i = 0; i < node_num; i++)
-			{
-				int comm_node_id = (node_id + i) % node_num; // avoid always to reach first master node
-				int comm_p = comm_node_id * node_procs;
-				MPI_Irecv(&node_all_to_all_buffer.data()[comm_node_id*exchange_count], exchange_count, MPI_UNSIGNED_LONG_LONG, comm_p, comm_p, MPI_COMM_WORLD, &req_1[req_count]);
-				req_count++;
-
-				MPI_Isend(&cumulative_all_to_allv_buffer.data()[comm_node_id*exchange_count], exchange_count, MPI_UNSIGNED_LONG_LONG, comm_p, rank, MPI_COMM_WORLD, &req_1[req_count]);
-				req_count++;
-			}
-			MPI_Waitall(req_count, req_1, stat_1);
-			double ata_end = MPI_Wtime();
-			ata_time = ata_end - ata_start;
-
-
-			// 4. reorder [0 1 0 1 0 1 0 1] --> [0 0 0 0 1 1 1 1]
-			double reorder_2_start = MPI_Wtime();
-			for (int i = 0; i < node_procs; i++)
-			{
-				for (int j = 0; j < nprocs; j++)
-				{
-					int offset = i * unit_count + j * blocklength;
-					int index = i * nprocs + j;
-					memcpy(&cumulative_all_to_allv_buffer.data()[index * unit_count], &node_all_to_all_buffer.data()[offset], unit_count * sizeof(long long));
-				}
-			}
-			double reorder_2_end = MPI_Wtime();
-			reorder_2_time = reorder_2_end - reorder_2_start;
-		}
-
-		// 5. master rank assign data to each process on the same node
-		double scatter_start = MPI_Wtime();
-		req_count = 0;
-		MPI_Irecv(local_compute_output.data(), local_count, MPI_UNSIGNED_LONG_LONG, master_rank, rank, MPI_COMM_WORLD, &req[req_count]);
-		req_count++;
-
-        if (rank == master_rank)
-        {
-        	for (int i = 0; i < node_procs; i++)
-        	{
-        		int send_rank = node_id * node_procs + i;
-        		MPI_Isend(&cumulative_all_to_allv_buffer.data()[i*local_count], local_count, MPI_UNSIGNED_LONG_LONG, send_rank, send_rank, MPI_COMM_WORLD, &req[req_count]);
-        		req_count++;
-        	}
-        }
-        MPI_Waitall(req_count, req, stat);
-        double scatter_end = MPI_Wtime();
-
-        double u_end = MPI_Wtime();
-
-        double max_u_time = 0;
-        double total_u_time = u_end - u_start;
-        MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-
-        double buff_pop_time = buff_pop_end - buff_pop_start;
-        double gather_time = gather_node_procs_end - gather_node_procs_start;
-        double scatter_time = scatter_end - scatter_start;
-
-
-        if (total_u_time == max_u_time)
-		{
-			if (it == 0)
-			{
-				std::cout << "SKIP [TPU] " << it << ", " << nprocs << " [ " << entry_count << " ] TPU time " << (u_end - u_start) << " [ "
-						<< buff_pop_time << " " << gather_time << " " << reorder_time << " " << ata_time << " " << reorder_2_time << " " << scatter_time << " ] " << std::endl;
-			}
-			else
-			{
-				std::cout << "[TPU] " << it << ", " << nprocs << " [ " << entry_count << " ] TPU time " << (u_end - u_start) << " [ "
-						<< buff_pop_time << " " << gather_time << " " << reorder_time << " " << ata_time << " " << reorder_2_time << " " << scatter_time << " ] " << std::endl;
-			}
-		}
-    }
-
-    std::vector<u64>().swap(local_compute_output);
-    std::vector<u64>().swap(node_all_to_all_buffer);
-    std::vector<u64>().swap(cumulative_all_to_allv_buffer);
-    local_compute_output.clear();
-    node_all_to_all_buffer.clear();
-    cumulative_all_to_allv_buffer.clear();
-}
 
 
 static void non_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int random_offset, int range)
@@ -1487,4 +1233,234 @@ static void complete_uniform_benchmark(int ra_count, int nprocs, u64 entry_count
     delete[] non_uniform_buffer.local_compute_output_size_flat;
     delete[] cumulative_all_to_allv_buffer;
     delete[] uniform_buffer.local_compute_output;
+}
+
+
+
+static void uniform_ptp_benchmark(int ra_count, int nprocs, u64 entry_count)
+{
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    all_to_all_buffer uniform_buffer;
+
+    u64 unit_count = ra_count * entry_count;
+    uniform_buffer.local_compute_output = new u64[(unit_count * nprocs)];
+    u64 *cumulative_all_to_allv_buffer = new u64[(unit_count * nprocs)];
+
+    for (int it=0; it < ITERATION_COUNT; it++)
+    {
+        double u_iter_buffer_time;
+        double u_iter_a2a_time;
+        double u_start = MPI_Wtime();
+
+        u64 global_cumulativ_send_count = 0;
+
+		double buff_pop_start = MPI_Wtime();
+		for (u64 i=0; i < (ra_count * nprocs * entry_count); i++)
+			uniform_buffer.local_compute_output[i] = i / (ra_count * entry_count);
+		double buff_pop_end = MPI_Wtime();
+
+		double a2a_start = MPI_Wtime();
+		MPI_Request* req = (MPI_Request*)malloc(2 * nprocs * sizeof(MPI_Request));
+		MPI_Status* stat = (MPI_Status*)malloc(2 * nprocs * sizeof(MPI_Status));
+		for (int i = 0; i < nprocs; i++)
+		{
+			int comm_p = (rank + i) % nprocs; // avoid always to reach first master node
+			MPI_Irecv(&cumulative_all_to_allv_buffer[comm_p*unit_count], unit_count, MPI_UNSIGNED_LONG_LONG, comm_p, 0, MPI_COMM_WORLD, &req[i]);
+		}
+
+		for (int i = 0; i < nprocs; i++)
+		{
+			int comm_p = (rank + i) % nprocs;
+			MPI_Isend(&uniform_buffer.local_compute_output[comm_p*unit_count], unit_count, MPI_UNSIGNED_LONG_LONG, comm_p, 0, MPI_COMM_WORLD, &req[i+nprocs]);
+		}
+		MPI_Waitall(2 * nprocs, req, stat);
+		free(req);
+		free(stat);
+		double a2a_end = MPI_Wtime();
+
+		u_iter_buffer_time = buff_pop_end-buff_pop_start;
+		u_iter_a2a_time = a2a_end-a2a_start;
+
+		double u_end = MPI_Wtime();
+
+		double max_u_time = 0;
+		double total_u_time = u_end - u_start;
+		MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+		if (total_u_time == max_u_time)
+		{
+			if (it == 0)
+			{
+				std::cout << "SKIP [PU] " << rank << ", " << nprocs << " [ " << entry_count << " ] PU time " << (u_end - u_start) << " ";
+				std::cout << u_iter_buffer_time << " " << u_iter_a2a_time << " " << std::endl;
+			}
+			else
+			{
+				std::cout << "[PU] " << rank << ", " << nprocs << " [ " << entry_count << " ] PU time " << (u_end - u_start) << " ";
+				std::cout << u_iter_buffer_time << " " << u_iter_a2a_time << std::endl;
+			}
+		}
+    }
+
+    delete[] cumulative_all_to_allv_buffer;
+    delete[] uniform_buffer.local_compute_output;
+}
+
+
+static void three_phases_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int node_procs)
+{
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    int node_id = rank / node_procs;
+    int master_rank = node_id * node_procs; // 0 * 64, 1 * 64
+
+    u64 unit_count = ra_count * entry_count;
+    u64 local_count = unit_count * nprocs;
+    std::vector<u64> local_compute_output(local_count);
+
+    std::vector<u64> node_all_to_all_buffer;
+    std::vector<u64> cumulative_all_to_allv_buffer;
+
+    for (int it=0; it < ITERATION_COUNT; it++)
+    {
+    	double u_start = MPI_Wtime();
+
+        double buff_pop_start = MPI_Wtime();
+        for (u64 i=0; i < local_count; i++)
+            local_compute_output[i] = i / (unit_count);
+        double buff_pop_end = MPI_Wtime();
+
+        // 1. gather data from other process on the same node to one master rank on that node
+        double gather_node_procs_start = MPI_Wtime();
+        int comm_count = (rank == master_rank)? (node_procs + 1) : 1;
+        MPI_Request req[comm_count];
+        MPI_Status stat[comm_count];
+        int req_count = 0;
+        if (rank == master_rank)
+        {
+        	node_all_to_all_buffer.reserve(local_count * node_procs);
+        	cumulative_all_to_allv_buffer.reserve(local_count * node_procs);
+
+        	for (int i = 0; i < node_procs; i++)
+        	{
+        		int recv_rank = node_id * node_procs + i;  // 3 * 64 + (0 ~ 64)
+        		MPI_Irecv(&node_all_to_all_buffer.data()[i*local_count], local_count, MPI_UNSIGNED_LONG_LONG, recv_rank, recv_rank, MPI_COMM_WORLD, &req[req_count]);
+        		req_count++;
+        	}
+        }
+
+        MPI_Isend(local_compute_output.data(), local_count, MPI_UNSIGNED_LONG_LONG, master_rank, rank, MPI_COMM_WORLD, &req[req_count]);
+		req_count++;
+		MPI_Waitall(req_count, req, stat);
+		double gather_node_procs_end = MPI_Wtime();
+
+
+		double reorder_time = 0, ata_time = 0, reorder_2_time = 0;
+		u64 blocklength = unit_count * node_procs;
+		int node_num = nprocs / node_procs;
+		if (rank == master_rank)
+		{
+	        // 2. exchange order of buffer
+			//    e.g., 0 2 [0 1 2 3 0 1 2 3] to [0 1 0 1 2 3 2 3] (each process [0 1 2 3])
+			double reorder_start = MPI_Wtime();
+			for (int i = 0; i < node_num; i++)
+			{
+				for (int j = 0; j < node_procs; j++)
+				{
+					int offset = j * local_count + i * blocklength;
+					int index = i * node_procs + j;
+					memcpy(&cumulative_all_to_allv_buffer.data()[index * blocklength], &node_all_to_all_buffer.data()[offset], blocklength * sizeof(long long));
+				}
+			}
+			double reorder_end = MPI_Wtime();
+			reorder_time = reorder_end - reorder_start;
+
+			// 3. all to all communication across all the master ranks
+			double ata_start = MPI_Wtime();
+			req_count = 0;
+			MPI_Request req_1[2*node_num];
+			MPI_Status stat_1[2*node_num];
+			u64 exchange_count = blocklength * node_procs;
+			for (int i = 0; i < node_num; i++)
+			{
+				int comm_node_id = (node_id + i) % node_num; // avoid always to reach first master node
+				int comm_p = comm_node_id * node_procs;
+				MPI_Irecv(&node_all_to_all_buffer.data()[comm_node_id*exchange_count], exchange_count, MPI_UNSIGNED_LONG_LONG, comm_p, comm_p, MPI_COMM_WORLD, &req_1[req_count]);
+				req_count++;
+
+				MPI_Isend(&cumulative_all_to_allv_buffer.data()[comm_node_id*exchange_count], exchange_count, MPI_UNSIGNED_LONG_LONG, comm_p, rank, MPI_COMM_WORLD, &req_1[req_count]);
+				req_count++;
+			}
+			MPI_Waitall(req_count, req_1, stat_1);
+			double ata_end = MPI_Wtime();
+			ata_time = ata_end - ata_start;
+
+
+			// 4. reorder [0 1 0 1 0 1 0 1] --> [0 0 0 0 1 1 1 1]
+			double reorder_2_start = MPI_Wtime();
+			for (int i = 0; i < node_procs; i++)
+			{
+				for (int j = 0; j < nprocs; j++)
+				{
+					int offset = i * unit_count + j * blocklength;
+					int index = i * nprocs + j;
+					memcpy(&cumulative_all_to_allv_buffer.data()[index * unit_count], &node_all_to_all_buffer.data()[offset], unit_count * sizeof(long long));
+				}
+			}
+			double reorder_2_end = MPI_Wtime();
+			reorder_2_time = reorder_2_end - reorder_2_start;
+		}
+
+		// 5. master rank assign data to each process on the same node
+		double scatter_start = MPI_Wtime();
+		req_count = 0;
+		MPI_Irecv(local_compute_output.data(), local_count, MPI_UNSIGNED_LONG_LONG, master_rank, rank, MPI_COMM_WORLD, &req[req_count]);
+		req_count++;
+
+        if (rank == master_rank)
+        {
+        	for (int i = 0; i < node_procs; i++)
+        	{
+        		int send_rank = node_id * node_procs + i;
+        		MPI_Isend(&cumulative_all_to_allv_buffer.data()[i*local_count], local_count, MPI_UNSIGNED_LONG_LONG, send_rank, send_rank, MPI_COMM_WORLD, &req[req_count]);
+        		req_count++;
+        	}
+        }
+        MPI_Waitall(req_count, req, stat);
+        double scatter_end = MPI_Wtime();
+
+        double u_end = MPI_Wtime();
+
+        double max_u_time = 0;
+        double total_u_time = u_end - u_start;
+        MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+        double buff_pop_time = buff_pop_end - buff_pop_start;
+        double gather_time = gather_node_procs_end - gather_node_procs_start;
+        double scatter_time = scatter_end - scatter_start;
+
+
+        if (total_u_time == max_u_time)
+		{
+			if (it == 0)
+			{
+				std::cout << "SKIP [TPU] " << it << ", " << nprocs << " [ " << entry_count << " ] TPU time " << (u_end - u_start) << " [ "
+						<< buff_pop_time << " " << gather_time << " " << reorder_time << " " << ata_time << " " << reorder_2_time << " " << scatter_time << " ] " << std::endl;
+			}
+			else
+			{
+				std::cout << "[TPU] " << it << ", " << nprocs << " [ " << entry_count << " ] TPU time " << (u_end - u_start) << " [ "
+						<< buff_pop_time << " " << gather_time << " " << reorder_time << " " << ata_time << " " << reorder_2_time << " " << scatter_time << " ] " << std::endl;
+			}
+		}
+    }
+
+    std::vector<u64>().swap(local_compute_output);
+    std::vector<u64>().swap(node_all_to_all_buffer);
+    std::vector<u64>().swap(cumulative_all_to_allv_buffer);
+    local_compute_output.clear();
+    node_all_to_all_buffer.clear();
+    cumulative_all_to_allv_buffer.clear();
 }
