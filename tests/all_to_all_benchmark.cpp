@@ -132,7 +132,6 @@ int main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int nprocs = mcomm.get_nprocs();
 
-//    int entry_count = 4;
     for (u64 entry_count=4; entry_count <= 4096; entry_count=entry_count*2)
     {
 		u64 local_count = nprocs * entry_count;
@@ -152,7 +151,7 @@ int main(int argc, char **argv)
 			MPI_Allreduce(&comm_time, &max_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
 			if (rank == 0)
-				std::cout << "[MPIATA] [" << entry_count << "] " << it << ", "  << max_time << std::endl;
+				std::cout << "[MPIATA] [" << nprocs << " " << entry_count << "] " << it << ", "  << max_time << std::endl;
 		}
 
 		MPI_Barrier(MPI_COMM_WORLD);
@@ -369,8 +368,6 @@ static void uniform_benchmark(int ra_count, int nprocs, int epoch_count, u64 ent
 
             }
         }
-
-
     }
 
     delete[] cumulative_all_to_allv_buffer;
@@ -472,7 +469,7 @@ static void naive_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_Data
 	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	if (total_u_time == max_u_time)
 	{
-		 std::cout << "[NaiveBruck] ["  << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
+		 std::cout << "[NaiveBruck] ["  << nprocs << " " << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
 				 << total_find_blocks_time << " " << total_copy_time << " " << total_comm_time << " " << total_replace_time
 				 << "] " << revs_rotation_time << std::endl;
 	}
@@ -506,7 +503,7 @@ static void datatype_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_D
 
     // 2. exchange data with log(P) steps
     double exchange_start =  MPI_Wtime();
-    double total_create_dt_time = 0, total_comm_time = 0;
+    double total_create_dt_time=0, total_copy_time=0, total_comm_time=0;
     for (int k = 1; k < nprocs; k <<= 1)
     {
 		// 1) create data type
@@ -532,11 +529,16 @@ static void datatype_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_D
     	int recv_proc = (rank - k + nprocs) % nprocs; // receive data from rank - 2^step process
     	int send_proc = (rank + k) % nprocs; // send data from rank + 2^k process
     	MPI_Sendrecv(sendbuf, 1, send_type, send_proc, 0, recvbuf, packsize, MPI_PACKED, recv_proc, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    	int pos = 0;
-    	MPI_Unpack(recvbuf, packsize, &pos, sendbuf, 1, send_type, MPI_COMM_WORLD);
-    	MPI_Type_free(&send_type);
 		double comm_end = MPI_Wtime();
 		total_comm_time += (comm_end - comm_start);
+
+		// 3) copy time
+    	int pos = 0;
+    	double copy_start = MPI_Wtime();
+    	MPI_Unpack(recvbuf, packsize, &pos, sendbuf, 1, send_type, MPI_COMM_WORLD);
+    	MPI_Type_free(&send_type);
+    	double copy_end = MPI_Wtime();
+    	total_copy_time += (copy_end - copy_start);
     }
 	double exchange_end = MPI_Wtime();
 	double exchange_time = exchange_end - exchange_start;
@@ -557,11 +559,10 @@ static void datatype_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_D
 	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	if (total_u_time == max_u_time)
 	{
-		 std::cout << "[DTBruck] [" << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
-				 << total_create_dt_time << " " << total_comm_time << "] " << revs_rotation_time << std::endl;
+		 std::cout << "[DTBruck] [" << nprocs << " " << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
+				 << total_create_dt_time << " " << total_comm_time << " " << total_copy_time << "] " << revs_rotation_time << std::endl;
 	}
 }
-
 
 
 static void modified_naive_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm)
@@ -645,7 +646,7 @@ static void modified_naive_bruck_uniform_benchmark(char *sendbuf, int sendcount,
 	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	if (total_u_time == max_u_time)
 	{
-		 std::cout << "[ModNaiveBruck] ["  << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
+		 std::cout << "[ModNaiveBruck] ["  << nprocs << " " << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
 				 << total_find_blocks_time << " " << total_copy_time << " " << total_comm_time << " " << total_replace_time << "] " << std::endl;
 	}
 }
@@ -677,7 +678,7 @@ static void modified_dt_bruck_uniform_benchmark(char *sendbuf, int sendcount, MP
 
     // 2. exchange data with log(P) steps
     double exchange_start =  MPI_Wtime();
- 	double total_create_dt_time = 0, total_comm_time = 0;
+ 	double total_create_dt_time=0, total_comm_time=0, total_copy_time=0;
  	for (int k = 1; k < nprocs; k <<= 1)
  	{
  		// 1) create data type
@@ -702,11 +703,16 @@ static void modified_dt_bruck_uniform_benchmark(char *sendbuf, int sendcount, MP
 		int recv_proc = (rank + k) % nprocs; // receive data from rank + 2^k process
 		int send_proc = (rank - k + nprocs) % nprocs; // send data from rank - 2^k process
 		MPI_Sendrecv(recvbuf, 1, send_type, send_proc, 0, sendbuf, packsize, MPI_PACKED, recv_proc, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		double comm_end = MPI_Wtime();
+		total_comm_time += (comm_end - comm_start);
+
+		// 3) copy time
+		double copy_start = MPI_Wtime();
 		int pos = 0;
 		MPI_Unpack(sendbuf, packsize, &pos, recvbuf, 1, send_type, MPI_COMM_WORLD);
 		MPI_Type_free(&send_type);
-		double comm_end = MPI_Wtime();
-		total_comm_time += (comm_end - comm_start);
+		double copy_end = MPI_Wtime();
+		total_copy_time += (copy_end - copy_start);
  	}
  	double exchange_end = MPI_Wtime();
  	double exchange_time = exchange_end - exchange_start;
@@ -717,8 +723,8 @@ static void modified_dt_bruck_uniform_benchmark(char *sendbuf, int sendcount, MP
  	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	if (total_u_time == max_u_time)
 	{
-		 std::cout << "[ModDtBruck] [" << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
-				 << total_create_dt_time << " " << total_comm_time << "] " << std::endl;
+		 std::cout << "[ModDtBruck] [" << nprocs << " " << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
+				 << total_create_dt_time << " " << total_comm_time << " " << total_copy_time << "] " << std::endl;
 	}
 }
 
@@ -801,7 +807,7 @@ static void noRotation_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI
  	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	if (total_u_time == max_u_time)
 	{
-		 std::cout << "[NoRotBruck] [" << sendcount << "] " << total_u_time << " " << create_rindex_time << " " << exchange_time << " ["
+		 std::cout << "[NoRotBruck] [" << nprocs << " " << sendcount << "] " << total_u_time << " " << create_rindex_time << " " << exchange_time << " ["
 				 << total_create_dt_time << " " << total_comm_time << " " << total_copy_time << "] " << std::endl;
 	}
 }
@@ -917,7 +923,7 @@ static void zerocopy_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_D
 	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	if (total_u_time == max_u_time)
 	{
-		 std::cout << "[ZerocopyBruck] [" << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
+		 std::cout << "[ZerocopyBruck] [" << nprocs << " " << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
 				 << total_create_dt_time << " " << total_comm_time << "] " << std::endl;
 	}
 }
@@ -1033,7 +1039,7 @@ static void zeroCopyRot_bruck_uniform_benchmark(char *sendbuf, int sendcount, MP
 	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 	if (total_u_time == max_u_time)
 	{
-		 std::cout << "[ZeroRotCopyBruck] [" << sendcount << "] " << total_u_time << " " << create_rindex_time << " " << exchange_time << " ["
+		 std::cout << "[ZeroRotCopyBruck] [" << nprocs << " " << sendcount << "] " << total_u_time << " " << create_rindex_time << " " << exchange_time << " ["
 				 << total_create_dt_time << " " << total_comm_time << "] " << std::endl;
 	}
 }
