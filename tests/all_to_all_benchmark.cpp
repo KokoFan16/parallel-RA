@@ -4,7 +4,7 @@
 #include <iterator>
 #include <bitset>
 
-#define ITERATION_COUNT 10
+#define ITERATION_COUNT 3
 
 static void uniform_benchmark(int ra_count, int nprocs, int epoch_count, u64 entry_count);
 static void non_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int random_offset, int range);
@@ -798,6 +798,7 @@ static void noRotation_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI
 		double copy_end = MPI_Wtime();
 		total_copy_time += (copy_end - copy_start);
  	}
+ 	free(temp_buffer);
  	double exchange_end =  MPI_Wtime();
  	double exchange_time = exchange_end - exchange_start;
 
@@ -891,6 +892,7 @@ static void zerocopy_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_D
 			b++;
 			j++; if ((j & k) != k) j += k; // data blocks whose kth bit is 1
 		}
+		free(temp_buffer);
 
 		MPI_Datatype sendblocktype;
 		MPI_Type_create_struct(b, commblocks, sendindex, commtypes, &sendblocktype);
@@ -1007,6 +1009,7 @@ static void zeroCopyRot_bruck_uniform_benchmark(char *sendbuf, int sendcount, MP
 			b++;
 			j++; if ((j & k) != k) j += k; // data blocks whose kth bit is 1
 		}
+		free(temp_buffer);
 
 		MPI_Datatype sendblocktype;
 		MPI_Type_create_struct(b, commblocks, sendindex, commtypes, &sendblocktype);
