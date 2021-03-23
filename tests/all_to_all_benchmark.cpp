@@ -104,30 +104,6 @@ int main(int argc, char **argv)
 //    if (mcomm.get_rank() == 0)
 //        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-//    	uniform_ptp_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
-
-//    MPI_Barrier(MPI_COMM_WORLD);
-//    if (mcomm.get_rank() == 0)
-//        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
-
-//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-//    	modified_bruck_non_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, 50, 50);
-//    modified_bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
-//    u64 entry_count=4;
-//    zero_copy_bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
-
-//    for (u64 entry_count=4; entry_count <= 64; entry_count=entry_count*2)
-//        three_phases_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count, node_procs);
-//
-//    MPI_Barrier(MPI_COMM_WORLD);
-//    if (mcomm.get_rank() == 0)
-//        std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
-//
-//    for (u64 entry_count=8; entry_count <= 4096; entry_count=entry_count*2)
-//    	bruck_uniform_benchmark(ra_count, mcomm.get_nprocs(), entry_count);
-
-
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int nprocs = mcomm.get_nprocs();
@@ -892,7 +868,6 @@ static void zerocopy_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_D
 			b++;
 			j++; if ((j & k) != k) j += k; // data blocks whose kth bit is 1
 		}
-		free(temp_buffer);
 
 		MPI_Datatype sendblocktype;
 		MPI_Type_create_struct(b, commblocks, sendindex, commtypes, &sendblocktype);
@@ -916,6 +891,7 @@ static void zerocopy_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_D
 
 		mask <<= 1;
 	}
+	free(temp_buffer);
 	double exchange_end =  MPI_Wtime();
 	double exchange_time = exchange_end - exchange_start;
 
@@ -1009,7 +985,6 @@ static void zeroCopyRot_bruck_uniform_benchmark(char *sendbuf, int sendcount, MP
 			b++;
 			j++; if ((j & k) != k) j += k; // data blocks whose kth bit is 1
 		}
-		free(temp_buffer);
 
 		MPI_Datatype sendblocktype;
 		MPI_Type_create_struct(b, commblocks, sendindex, commtypes, &sendblocktype);
@@ -1033,6 +1008,7 @@ static void zeroCopyRot_bruck_uniform_benchmark(char *sendbuf, int sendcount, MP
 
 		mask <<= 1;
 	}
+	free(temp_buffer);
 	double exchange_end =  MPI_Wtime();
 	double exchange_time = exchange_end - exchange_start;
 
@@ -1046,6 +1022,7 @@ static void zeroCopyRot_bruck_uniform_benchmark(char *sendbuf, int sendcount, MP
 				 << total_create_dt_time << " " << total_comm_time << "] " << std::endl;
 	}
 }
+
 
 static void modified_bruck_non_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int random_offset, int range)
 {
