@@ -147,7 +147,7 @@ int main(int argc, char **argv)
 //    }
 
     // Initial send counts and offset array
-    u64 entry_count=4;
+    u64 entry_count=32;
     int random_offset = 60;
     int range = 100 - random_offset;
     int sendcounts[nprocs];
@@ -160,6 +160,12 @@ int main(int argc, char **argv)
 		sendcounts[i] = (entry_count * random) / 100;
 		sdispls[i] = soffset;
 		soffset += sendcounts[i];
+	}
+
+	if (rank == 0)
+	{
+		std::cout << "Non-uniform [" << random_offset << " -- " << range << "] " << soffset << std::endl;
+		std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"  << std::endl;
 	}
 
 	// Initial receive counts and offset array
@@ -194,8 +200,15 @@ int main(int argc, char **argv)
 		std::cout << "[MPIAlltoallv]" << " [" << nprocs << " " << entry_count << "] "<<  max_time << std::endl;
 
 	MPI_Barrier(MPI_COMM_WORLD);
-		if (mcomm.get_rank() == 0)
-			std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+	if (mcomm.get_rank() == 0)
+		std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+	index = 0;
+	for (int i=0; i < nprocs; i++)
+	{
+		for (int j = 0; j < sendcounts[i]; j++)
+			send_buffer[index++] = i + rank * 10;
+	}
 
 	naive_bruck_non_uniform_benchmark((char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 
@@ -203,11 +216,11 @@ int main(int argc, char **argv)
 		if (mcomm.get_rank() == 0)
 			std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-//	if (rank == 5)
-//	{
-//		for (int i=0; i < roffset; i++)
-//			std::cout << recv_buffer[i] << "\n";
-//	}
+	if (rank == 5)
+	{
+		for (int i=0; i < roffset; i++)
+			std::cout << recv_buffer[i] << "\n";
+	}
 
 	delete[] send_buffer;
 	delete[] recv_buffer;
