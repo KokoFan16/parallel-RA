@@ -139,12 +139,6 @@ int main(int argc, char **argv)
 //    }
 
     // Initial send counts and offset array
-
-//    u64 entry_count=64;
-
-//    int random_offset = 90;
-//    int range = 100 - random_offset;
-
     for (int range = 10; range < 101; range += 10)
     {
     	if (range == 60) range += 40;
@@ -210,6 +204,7 @@ int main(int argc, char **argv)
 					std::cout << "[MPIAlltoallv]" << " [" << nprocs << " " << range << " " << entry_count << "] "<<  max_time << std::endl;
 
 				delete[] recv_buffer;
+				MPI_Barrier(MPI_COMM_WORLD);
 			}
 
 
@@ -242,6 +237,7 @@ int main(int argc, char **argv)
 				naive_bruck_non_uniform_benchmark(range, (char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 
 				delete[] recv_buffer;
+				MPI_Barrier(MPI_COMM_WORLD);
 			}
 
 
@@ -273,6 +269,8 @@ int main(int argc, char **argv)
 				}
 				modified_dt_bruck_non_uniform_benchmark(range, (char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 				delete[] recv_buffer;
+
+				MPI_Barrier(MPI_COMM_WORLD);
 			}
 
 
@@ -303,6 +301,8 @@ int main(int argc, char **argv)
 				}
 				datatype_bruck_non_uniform_benchmark(range, (char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 				delete[] recv_buffer;
+
+				MPI_Barrier(MPI_COMM_WORLD);
 			}
 
 
@@ -333,6 +333,8 @@ int main(int argc, char **argv)
 				}
 				zeroCopy_bruck_non_uniform_benchmark(range, (char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 				delete[] recv_buffer;
+
+				MPI_Barrier(MPI_COMM_WORLD);
 			}
 
 
@@ -366,6 +368,8 @@ int main(int argc, char **argv)
 				}
 				sloav_non_uniform_benchmark(range, (char*)send_buffer, tmp_sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 				delete[] recv_buffer;
+
+				MPI_Barrier(MPI_COMM_WORLD);
 			}
 
 			delete[] send_buffer;
@@ -378,12 +382,6 @@ int main(int argc, char **argv)
 //		for (int i=0; i < roffset; i++)
 //			std::cout << recv_buffer[i] << "\n";
 //	}
-
-
-
-
-
-
 
 
 //#if 0
