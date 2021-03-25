@@ -168,28 +168,30 @@ int main(int argc, char **argv)
 			{
 				std::cout << "Non-uniform Sendcount [" << random_offset << " " << range << " " << entry_count << "] " << soffset << std::endl;
 				std::cout << "###########################################"  << std::endl;
-				for (int i=0; i < nprocs; i++)
-					std::cout << sendcounts[i] << " ";
-				std::cout << "\n";
-			}
-
-			// Initial receive counts and offset array
-			int recvcounts[nprocs];
-			MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
-			int rdispls[nprocs];
-			int roffset = 0;
-			for (int i=0; i < nprocs; i++)
-			{
-				rdispls[i] = roffset;
-				roffset += recvcounts[i];
+//				for (int i=0; i < nprocs; i++)
+//					std::cout << sendcounts[i] << " ";
+//				std::cout << "\n";
 			}
 
 			// Initial send buffer
 			u64* send_buffer = new u64[soffset];
-			u64* recv_buffer = new u64[roffset];
 
 			for (int it=0; it < ITERATION_COUNT; it++)
 			{
+				// Initial receive counts and offset array
+				int recvcounts[nprocs];
+				MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
+				int rdispls[nprocs];
+				int roffset = 0;
+				for (int i=0; i < nprocs; i++)
+				{
+					rdispls[i] = roffset;
+					roffset += recvcounts[i];
+				}
+
+				u64* recv_buffer = new u64[roffset];
+
+				// Assign data
 				int index = 0;
 				for (int i=0; i < nprocs; i++)
 				{
@@ -206,6 +208,8 @@ int main(int argc, char **argv)
 				MPI_Allreduce(&total_time, &max_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 				if (total_time == max_time)
 					std::cout << "[MPIAlltoallv]" << " [" << nprocs << " " << range << " " << entry_count << "] "<<  max_time << std::endl;
+
+				delete[] recv_buffer;
 			}
 
 
@@ -216,6 +220,19 @@ int main(int argc, char **argv)
 
 			for (int it=0; it < ITERATION_COUNT; it++)
 			{
+				// Initial receive counts and offset array
+				int recvcounts[nprocs];
+				MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
+				int rdispls[nprocs];
+				int roffset = 0;
+				for (int i=0; i < nprocs; i++)
+				{
+					rdispls[i] = roffset;
+					roffset += recvcounts[i];
+				}
+
+				u64* recv_buffer = new u64[roffset];
+
 				int index = 0;
 				for (int i=0; i < nprocs; i++)
 				{
@@ -223,6 +240,8 @@ int main(int argc, char **argv)
 						send_buffer[index++] = i + rank * 10;
 				}
 				naive_bruck_non_uniform_benchmark(range, (char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+
+				delete[] recv_buffer;
 			}
 
 
@@ -233,6 +252,19 @@ int main(int argc, char **argv)
 
 			for (int it=0; it < ITERATION_COUNT; it++)
 			{
+				// Initial receive counts and offset array
+				int recvcounts[nprocs];
+				MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
+				int rdispls[nprocs];
+				int roffset = 0;
+				for (int i=0; i < nprocs; i++)
+				{
+					rdispls[i] = roffset;
+					roffset += recvcounts[i];
+				}
+
+				u64* recv_buffer = new u64[roffset];
+
 				int index = 0;
 				for (int i=0; i < nprocs; i++)
 				{
@@ -240,6 +272,7 @@ int main(int argc, char **argv)
 						send_buffer[index++] = i + rank * 10;
 				}
 				modified_dt_bruck_non_uniform_benchmark(range, (char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+				delete[] recv_buffer;
 			}
 
 
@@ -250,6 +283,18 @@ int main(int argc, char **argv)
 
 			for (int it=0; it < ITERATION_COUNT; it++)
 			{
+				// Initial receive counts and offset array
+				int recvcounts[nprocs];
+				MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
+				int rdispls[nprocs];
+				int roffset = 0;
+				for (int i=0; i < nprocs; i++)
+				{
+					rdispls[i] = roffset;
+					roffset += recvcounts[i];
+				}
+
+				u64* recv_buffer = new u64[roffset];
 				int index = 0;
 				for (int i=0; i < nprocs; i++)
 				{
@@ -257,6 +302,7 @@ int main(int argc, char **argv)
 						send_buffer[index++] = i + rank * 10;
 				}
 				datatype_bruck_non_uniform_benchmark(range, (char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+				delete[] recv_buffer;
 			}
 
 
@@ -267,6 +313,18 @@ int main(int argc, char **argv)
 
 			for (int it=0; it < ITERATION_COUNT; it++)
 			{
+				// Initial receive counts and offset array
+				int recvcounts[nprocs];
+				MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
+				int rdispls[nprocs];
+				int roffset = 0;
+				for (int i=0; i < nprocs; i++)
+				{
+					rdispls[i] = roffset;
+					roffset += recvcounts[i];
+				}
+
+				u64* recv_buffer = new u64[roffset];
 				int index = 0;
 				for (int i=0; i < nprocs; i++)
 				{
@@ -274,6 +332,7 @@ int main(int argc, char **argv)
 						send_buffer[index++] = i + rank * 10;
 				}
 				zeroCopy_bruck_non_uniform_benchmark(range, (char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+				delete[] recv_buffer;
 			}
 
 
@@ -284,6 +343,18 @@ int main(int argc, char **argv)
 
 			for (int it=0; it < ITERATION_COUNT; it++)
 			{
+				// Initial receive counts and offset array
+				int recvcounts[nprocs];
+				MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
+				int rdispls[nprocs];
+				int roffset = 0;
+				for (int i=0; i < nprocs; i++)
+				{
+					rdispls[i] = roffset;
+					roffset += recvcounts[i];
+				}
+
+				u64* recv_buffer = new u64[roffset];
 				int tmp_sendcounts[nprocs];
 				memcpy(tmp_sendcounts, sendcounts, nprocs*sizeof(int));
 
@@ -294,10 +365,10 @@ int main(int argc, char **argv)
 						send_buffer[index++] = i + rank * 10;
 				}
 				sloav_non_uniform_benchmark(range, (char*)send_buffer, tmp_sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+				delete[] recv_buffer;
 			}
 
 			delete[] send_buffer;
-			delete[] recv_buffer;
 		}
     }
 
