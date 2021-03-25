@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 
     // Initial send counts and offset array
     u64 entry_count=4;
-    int random_offset = 60;
+    int random_offset = 0;
     int range = 100 - random_offset;
     int sendcounts[nprocs];
 	int sdispls[nprocs];
@@ -221,7 +221,6 @@ int main(int argc, char **argv)
 
 	modified_dt_bruck_non_uniform_benchmark((char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 
-
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (mcomm.get_rank() == 0)
 		std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
@@ -264,7 +263,7 @@ int main(int argc, char **argv)
 
 	sloav_non_uniform_benchmark((char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 
-//	if (rank == 5)
+//	if (rank == 3)
 //	{
 //		for (int i=0; i < roffset; i++)
 //			std::cout << recv_buffer[i] << "\n";
@@ -561,35 +560,69 @@ static void modified_dt_bruck_non_uniform_benchmark(char *sendbuf, int *sendcoun
 	double find_count_end = MPI_Wtime();
 	double find_count_time = find_count_end - find_count_start;
 
-	// 2. padding buffer with max send count
-	double padding_start = MPI_Wtime();
+	// 2. local rotation
+	double rotation_start = MPI_Wtime();
 	char* temp_send_buffer = (char*)malloc(max_send_count*nprocs*typesize);
+	char* temp_recv_buffer = (char*)malloc(max_send_count*typesize*nprocs);
 	memset(temp_send_buffer, 0, max_send_count*nprocs*typesize);
 	int offset = 0;
-	for (int i=0; i < nprocs; i++)
+	for (int i = 0; i < nprocs; i++)
 	{
-		memcpy(&temp_send_buffer[i*max_send_count*typesize], &sendbuf[offset], sendcounts[i]*typesize);
+		int index = (2*rank-i+nprocs)%nprocs;
+		memcpy(&temp_send_buffer[index*max_send_count*typesize], &sendbuf[offset], sendcounts[i]*typesize);
 		offset += sendcounts[i]*typesize;
 	}
-	double padding_end = MPI_Wtime();
-	double padding_time = padding_end - padding_start;
+	double rotation_end = MPI_Wtime();
+	double rotation_time = rotation_end - rotation_start;
 
-	// 3. exchange data with modified bruck algorithm (padding buffer and max send count)
-	double bruck_start = MPI_Wtime();
-	char* temp_recv_buffer = (char*)malloc(max_send_count*nprocs*typesize);
-	modified_dt_bruck_uniform_benchmark(temp_send_buffer, max_send_count, sendtype, temp_recv_buffer, max_send_count, recvtype, comm);
-	double bruck_end = MPI_Wtime();
-	double bruck_time = bruck_end - bruck_start;
+    // 3. exchange data with log(P) steps
+    double exchange_start =  MPI_Wtime();
+    u64 unit_size = max_send_count * typesize;
+ 	double total_create_dt_time=0, total_comm_time=0, total_copy_time=0;
+ 	for (int k = 1; k < nprocs; k <<= 1)
+ 	{
+ 		// 1) create data type
+		double create_datatype_start = MPI_Wtime();
+		int displs[(nprocs+1)/2];
+		int sendb_num = 0;
+		for (int i = 1; i < nprocs; i++)
+		{
+			if (i & k)
+				displs[sendb_num++] = ((rank+i)%nprocs)*unit_size;
+		}
+		MPI_Datatype send_type;
+		MPI_Type_create_indexed_block(sendb_num, unit_size, displs, MPI_CHAR, &send_type);
+		MPI_Type_commit(&send_type);
+		double create_datatype_end = MPI_Wtime();
+		total_create_dt_time += create_datatype_end - create_datatype_start;
+
+		// 2) exchange data
+		double comm_start = MPI_Wtime();
+		int recv_proc = (rank + k) % nprocs; // receive data from rank + 2^k process
+		int send_proc = (rank - k + nprocs) % nprocs; // send data from rank - 2^k process
+		MPI_Sendrecv(temp_send_buffer, 1, send_type, send_proc, 0, temp_recv_buffer, 1, send_type, recv_proc, 0, comm, MPI_STATUS_IGNORE);
+		MPI_Type_free(&send_type);
+		double comm_end = MPI_Wtime();
+		total_comm_time += (comm_end - comm_start);
+
+		// 3) copy time
+		double copy_start = MPI_Wtime();
+		for (int i = 0; i < sendb_num; i++)
+			memcpy(temp_send_buffer+displs[i], temp_recv_buffer+displs[i], unit_size);
+		double copy_end = MPI_Wtime();
+		total_copy_time += (copy_end - copy_start);
+ 	}
+ 	free(temp_recv_buffer);
+ 	double exchange_end = MPI_Wtime();
+ 	double exchange_time = exchange_end - exchange_start;
 
 	// 4. remove padding
 	double filter_start = MPI_Wtime();
 	for (int i=0; i < nprocs; i++)
-		memcpy(&recvbuf[rdispls[i]*typesize], &temp_recv_buffer[i*max_send_count*typesize], recvcounts[i]*typesize);
+		memcpy(&recvbuf[rdispls[i]*typesize], &temp_send_buffer[i*max_send_count*typesize], recvcounts[i]*typesize);
 	double filter_end = MPI_Wtime();
 	double filter_time = filter_end - filter_start;
-
-	free(temp_send_buffer);
-	free(temp_recv_buffer);
+ 	free(temp_send_buffer);
 
 	double u_end = MPI_Wtime();
 	double max_u_time = 0;
@@ -597,8 +630,8 @@ static void modified_dt_bruck_non_uniform_benchmark(char *sendbuf, int *sendcoun
 	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, comm);
 	if (total_u_time == max_u_time)
 	{
-		 std::cout << "[ModDtBruckNoN] ["  << nprocs << " " << max_send_count << "] " << total_u_time << " " << find_count_time << " " << padding_time << " "
-				 << bruck_time << " " << filter_time << std::endl;
+		 std::cout << "[ModDtBruckNoN] ["  << nprocs << " " << max_send_count << "] " << total_u_time << " " << find_count_time << " " << rotation_time << " "
+				 << exchange_time << " [" << total_create_dt_time << " " << total_comm_time << " " << total_copy_time << "] "<< filter_time << std::endl;
 	}
 }
 
@@ -802,7 +835,6 @@ static void sloav_non_uniform_benchmark(char *sendbuf, int *sendcounts, int *sdi
 				 << total_find_blocks_time << " " << total_pre_time << " " << total_send_meda_time << " " << total_comm_time << " " << total_replace_time << "] " << filter_time << std::endl;
 	}
 }
-
 
 // naive Bruck (without any datatype)
 static void naive_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_Datatype sendtype, char *recvbuf, int recvcount, MPI_Datatype recvtype,  MPI_Comm comm)
