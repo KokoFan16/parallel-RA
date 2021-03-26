@@ -27,7 +27,7 @@ static void datatype_bruck_non_uniform_benchmark(int range, char *sendbuf, int *
 static void modified_dt_bruck_non_uniform_benchmark(int range, char *sendbuf, int *sendcounts, int *sdispls, MPI_Datatype sendtype, char *recvbuf, int *recvcounts, int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
 static void zeroCopy_bruck_non_uniform_benchmark(int range, char *sendbuf, int *sendcounts, int *sdispls, MPI_Datatype sendtype, char *recvbuf, int *recvcounts, int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
 static void sloav_non_uniform_benchmark(int range, char *sendbuf, int *sendcounts, int *sdispls, MPI_Datatype sendtype, char *recvbuf, int *recvcounts, int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
-
+static void ptp_non_uniform_benchmark(char *sendbuf, int *sendcounts, int *sdispls, MPI_Datatype sendtype, char *recvbuf, int *recvcounts, int *rdispls, MPI_Datatype recvtype, MPI_Comm comm);
 
 int main(int argc, char **argv)
 {
@@ -162,9 +162,6 @@ int main(int argc, char **argv)
 			{
 				std::cout << "Non-uniform Sendcount [" << random_offset << " " << range << " " << entry_count << "] " << soffset << std::endl;
 				std::cout << "###########################################"  << std::endl;
-//				for (int i=0; i < nprocs; i++)
-//					std::cout << sendcounts[i] << " ";
-//				std::cout << "\n";
 			}
 
 			// Initial send buffer
@@ -207,6 +204,46 @@ int main(int argc, char **argv)
 				MPI_Barrier(MPI_COMM_WORLD);
 			}
 
+
+			MPI_Barrier(MPI_COMM_WORLD);
+			if (mcomm.get_rank() == 0)
+				std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+			for (int it=0; it < ITERATION_COUNT; it++)
+			{
+				// Initial receive counts and offset array
+				int recvcounts[nprocs];
+				MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
+				int rdispls[nprocs];
+				int roffset = 0;
+				for (int i=0; i < nprocs; i++)
+				{
+					rdispls[i] = roffset;
+					roffset += recvcounts[i];
+				}
+				u64* recv_buffer = new u64[roffset];
+
+				// Assign data
+				int index = 0;
+				for (int i=0; i < nprocs; i++)
+				{
+					for (int j = 0; j < sendcounts[i]; j++)
+						send_buffer[index++] = i + rank * 10;
+				}
+
+				double comm_start = MPI_Wtime();
+				ptp_non_uniform_benchmark((char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+				double comm_end = MPI_Wtime();
+
+				double max_time = 0;
+				double total_time = comm_end - comm_start;
+				MPI_Allreduce(&total_time, &max_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+				if (total_time == max_time)
+					std::cout << "[PTPAlltoallv]" << " [" << nprocs << " " << range << " " << entry_count << "] "<<  max_time << std::endl;
+
+				delete[] recv_buffer;
+				MPI_Barrier(MPI_COMM_WORLD);
+			}
 
 			MPI_Barrier(MPI_COMM_WORLD);
 			if (mcomm.get_rank() == 0)
@@ -279,38 +316,6 @@ int main(int argc, char **argv)
 				std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
 
-//			for (int it=0; it < ITERATION_COUNT; it++)
-//			{
-//				// Initial receive counts and offset array
-//				int recvcounts[nprocs];
-//				MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
-//				int rdispls[nprocs];
-//				int roffset = 0;
-//				for (int i=0; i < nprocs; i++)
-//				{
-//					rdispls[i] = roffset;
-//					roffset += recvcounts[i];
-//				}
-//
-//				u64* recv_buffer = new u64[roffset];
-//				int index = 0;
-//				for (int i=0; i < nprocs; i++)
-//				{
-//					for (int j = 0; j < sendcounts[i]; j++)
-//						send_buffer[index++] = i + rank * 10;
-//				}
-//				datatype_bruck_non_uniform_benchmark(range, (char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
-//				delete[] recv_buffer;
-//
-//				MPI_Barrier(MPI_COMM_WORLD);
-//			}
-//
-//
-//			MPI_Barrier(MPI_COMM_WORLD);
-//			if (mcomm.get_rank() == 0)
-//				std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
-
-
 			for (int it=0; it < ITERATION_COUNT; it++)
 			{
 				// Initial receive counts and offset array
@@ -371,11 +376,9 @@ int main(int argc, char **argv)
 
 				MPI_Barrier(MPI_COMM_WORLD);
 			}
-
 			delete[] send_buffer;
 		}
     }
-
 
 //	if (rank == 3)
 //	{
@@ -420,6 +423,34 @@ int main(int argc, char **argv)
 //#endif
     mcomm.destroy();
     return 0;
+}
+
+
+static void ptp_non_uniform_benchmark(char *sendbuf, int *sendcounts, int *sdispls, MPI_Datatype sendtype, char *recvbuf, int *recvcounts, int *rdispls, MPI_Datatype recvtype, MPI_Comm comm)
+{
+	int rank, nprocs;
+	MPI_Comm_rank(comm, &rank);
+	MPI_Comm_size(comm, &nprocs);
+
+	int typesize;
+	MPI_Type_size(sendtype, &typesize);
+
+	MPI_Request* req = (MPI_Request*)malloc(2*nprocs*sizeof(MPI_Request));
+	MPI_Status* stat = (MPI_Status*)malloc(2*nprocs*sizeof(MPI_Status));
+	for (int i = 0; i < nprocs; i++)
+	{
+		int src = (rank + i) % nprocs; // avoid always to reach first master node
+		MPI_Irecv(&recvbuf[rdispls[src]*typesize], recvcounts[src]*typesize, MPI_CHAR, src, 0, comm, &req[i]);
+	}
+
+	for (int i = 0; i < nprocs; i++)
+	{
+		int dst = (rank - i + nprocs) % nprocs;
+		MPI_Isend(&sendbuf[sdispls[dst]*typesize], sendcounts[dst]*typesize, MPI_CHAR, dst, 0, comm, &req[i+nprocs]);
+	}
+	MPI_Waitall(2*nprocs, req, stat);
+	free(req);
+	free(stat);
 }
 
 
