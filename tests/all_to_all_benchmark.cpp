@@ -160,7 +160,7 @@ int main(int argc, char **argv)
 
 			if (rank == 0)
 			{
-				std::cout << "Non-uniform Sendcount [" << random_offset << " " << range << " " << entry_count << "] " << soffset << std::endl;
+				std::cout << "Non-uniform Sendcount [" << nprocs << " " << random_offset << " " << range << " " << entry_count << "] " << soffset << std::endl;
 				std::cout << "###########################################"  << std::endl;
 			}
 
@@ -1038,7 +1038,7 @@ static void sloav_non_uniform_benchmark(int range, char *sendbuf, int *sendcount
 	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, comm);
 	if (total_u_time == max_u_time)
 	{
-		 std::cout << "[SLOAV] [" << nprocs << " " << range << " " << max_send_count << "] " << total_u_time << " " << create_rindex_time << " " << exchange_time << " ["
+		 std::cout << "[SLOAV] [" << nprocs << " " << range << " " << max_send_count << "] " << total_u_time << " " << find_count_time << " " << create_rindex_time << " " << exchange_time << " ["
 				 << total_find_blocks_time << " " << total_pre_time << " " << total_send_meda_time << " " << total_comm_time << " " << total_replace_time << "] " << filter_time << std::endl;
 	}
 }
