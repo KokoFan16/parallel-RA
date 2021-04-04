@@ -139,12 +139,12 @@ int main(int argc, char **argv)
 //    }
 
     // Initial send counts and offset array
-    for (int range = 10; range < 101; range += 10)
+    for (int range = 20; range < 101; range += 20)
     {
-    	if (range == 60) range += 40;
+//    	if (range == 60) range += 40;
     	int random_offset = 100 - range;
 
-		for (u64 entry_count=2; entry_count <= 512; entry_count=entry_count*2)
+		for (u64 entry_count=2; entry_count <= 256; entry_count=entry_count*2)
 		{
 			int sendcounts[nprocs];
 			int sdispls[nprocs];
@@ -1013,7 +1013,6 @@ static void sloav_non_uniform_benchmark(int range, char *sendbuf, int *sendcount
 		}
 		double replace_end = MPI_Wtime();
 		total_replace_time += (replace_end - replace_start);
-
 	}
 	free(temp_send_buffer);
 	free(temp_recv_buffer);
