@@ -4,7 +4,7 @@
 #include <iterator>
 #include <bitset>
 
-#define ITERATION_COUNT 13
+#define ITERATION_COUNT 8
 
 static void uniform_benchmark(int ra_count, int nprocs, int epoch_count, u64 entry_count);
 static void non_uniform_benchmark(int ra_count, int nprocs, u64 entry_count, int random_offset, int range);
@@ -209,45 +209,45 @@ int main(int argc, char **argv)
 			if (mcomm.get_rank() == 0)
 				std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-			for (int it=0; it < ITERATION_COUNT; it++)
-			{
-				// Initial receive counts and offset array
-				int recvcounts[nprocs];
-				MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
-				int rdispls[nprocs];
-				int roffset = 0;
-				for (int i=0; i < nprocs; i++)
-				{
-					rdispls[i] = roffset;
-					roffset += recvcounts[i];
-				}
-				u64* recv_buffer = new u64[roffset];
+//			for (int it=0; it < ITERATION_COUNT; it++)
+//			{
+//				// Initial receive counts and offset array
+//				int recvcounts[nprocs];
+//				MPI_Alltoall(sendcounts, 1, MPI_INT, recvcounts, 1, MPI_INT, MPI_COMM_WORLD);
+//				int rdispls[nprocs];
+//				int roffset = 0;
+//				for (int i=0; i < nprocs; i++)
+//				{
+//					rdispls[i] = roffset;
+//					roffset += recvcounts[i];
+//				}
+//				u64* recv_buffer = new u64[roffset];
+//
+//				// Assign data
+//				int index = 0;
+//				for (int i=0; i < nprocs; i++)
+//				{
+//					for (int j = 0; j < sendcounts[i]; j++)
+//						send_buffer[index++] = i + rank * 10;
+//				}
+//
+//				double comm_start = MPI_Wtime();
+//				ptp_non_uniform_benchmark((char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+//				double comm_end = MPI_Wtime();
+//
+//				double max_time = 0;
+//				double total_time = comm_end - comm_start;
+//				MPI_Allreduce(&total_time, &max_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+//				if (total_time == max_time)
+//					std::cout << "[PTPAlltoallv]" << " [" << nprocs << " " << range << " " << entry_count << "] "<<  max_time << std::endl;
+//
+//				delete[] recv_buffer;
+//				MPI_Barrier(MPI_COMM_WORLD);
+//			}
 
-				// Assign data
-				int index = 0;
-				for (int i=0; i < nprocs; i++)
-				{
-					for (int j = 0; j < sendcounts[i]; j++)
-						send_buffer[index++] = i + rank * 10;
-				}
-
-				double comm_start = MPI_Wtime();
-				ptp_non_uniform_benchmark((char*)send_buffer, sendcounts, sdispls, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, recvcounts, rdispls, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
-				double comm_end = MPI_Wtime();
-
-				double max_time = 0;
-				double total_time = comm_end - comm_start;
-				MPI_Allreduce(&total_time, &max_time, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-				if (total_time == max_time)
-					std::cout << "[PTPAlltoallv]" << " [" << nprocs << " " << range << " " << entry_count << "] "<<  max_time << std::endl;
-
-				delete[] recv_buffer;
-				MPI_Barrier(MPI_COMM_WORLD);
-			}
-
-			MPI_Barrier(MPI_COMM_WORLD);
-			if (mcomm.get_rank() == 0)
-				std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+//			MPI_Barrier(MPI_COMM_WORLD);
+//			if (mcomm.get_rank() == 0)
+//				std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
 
 			for (int it=0; it < ITERATION_COUNT; it++)
