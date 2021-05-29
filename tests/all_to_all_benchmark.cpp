@@ -51,6 +51,10 @@ int main(int argc, char **argv)
 		std::cout << "******************** Random Distribution Scheme ********************\n";
     run(nprocs, 0);
 
+	if (rank == 0)
+		std::cout << "******************** Random Distribution Scheme ********************\n";
+    run(nprocs, 0);
+
     // Gaussian Normal Distribution Scheme
 	if (rank == 0)
 		std::cout << "**************** Gaussian Normal Distribution Scheme **************\n";
