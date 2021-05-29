@@ -51,6 +51,7 @@ int main(int argc, char **argv)
 		std::cout << "******************** Random Distribution Scheme ********************\n";
     run(nprocs, 0);
 
+
 	if (rank == 0)
 		std::cout << "******************** Random Distribution Scheme ********************\n";
     run(nprocs, 0);
@@ -113,7 +114,7 @@ static void run(int nprocs, int dist)
     int range = 100;
     int random_offset = 100 - range;
 
-	for (u64 entry_count=2; entry_count <= 128; entry_count=entry_count*2)
+	for (u64 entry_count=2; entry_count <= 256; entry_count=entry_count*2)
 	{
 		int sendcounts[nprocs]; // the size of data each process send to other process
 		memset(sendcounts, 0, nprocs*sizeof(int));
