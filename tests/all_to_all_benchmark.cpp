@@ -135,7 +135,7 @@ static void run(int nprocs, int dist)
 		{
 			// Gausian distribution
 			std::default_random_engine generator;
-			std::normal_distribution<double> distribution(nprocs/2, nprocs/3); // set mean and deviation
+			std::normal_distribution<double> distribution(nprocs/2, nprocs/6); // set mean and deviation
 
 			while(true)
 			{
@@ -155,7 +155,7 @@ static void run(int nprocs, int dist)
 			for (int i=0; i<nprocs; ++i)
 			{
 				sendcounts[i] = (int)x;
-				x = x * 0.999;
+				x = x * 0.99;
 			}
 		}
 
