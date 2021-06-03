@@ -48,35 +48,33 @@ int main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int nprocs = mcomm.get_nprocs();
 
-    // Random Distribution Scheme
-	if (rank == 0)
-		std::cout << "******************** Random Distribution Scheme ********************\n";
-	run_non_uniform(nprocs, 0);
+    //	if (rank == 0)
+    //		std::cout << "******************** Random Distribution Scheme ********************\n";
+    //	run_uniform(nprocs);
 
     // Random Distribution Scheme
 	if (rank == 0)
 		std::cout << "******************** Random Distribution Scheme ********************\n";
 	run_non_uniform(nprocs, 0);
 
+    // Random Distribution Scheme
+	if (rank == 0)
+		std::cout << "******************** Random Distribution Scheme ********************\n";
+	run_non_uniform(nprocs, 0);
 
-//	if (rank == 0)
-//		std::cout << "******************** Random Distribution Scheme ********************\n";
-//	run_uniform(nprocs);
-
-
-//	if (rank == 0)
-//		std::cout << "******************** Random Distribution Scheme ********************\n";
-//    run_non_uniform(nprocs, 0);
+	if (rank == 0)
+		std::cout << "******************** Random Distribution Scheme ********************\n";
+    run_non_uniform(nprocs, 0);
 
     // Gaussian Normal Distribution Scheme
-//	if (rank == 0)
-//		std::cout << "**************** Gaussian Normal Distribution Scheme **************\n";
-//    run_non_uniform(nprocs, 1);
+	if (rank == 0)
+		std::cout << "**************** Gaussian Normal Distribution Scheme **************\n";
+    run_non_uniform(nprocs, 1);
 
     // Power Law Distribution Scheme
-//	if (rank == 0)
-//		std::cout << "********************* Power Law Distribution Scheme ****************\n";
-//    run_non_uniform(nprocs, 2);
+	if (rank == 0)
+		std::cout << "********************* Power Law Distribution Scheme ****************\n";
+    run_non_uniform(nprocs, 2);
 
 
     mcomm.destroy();
@@ -92,7 +90,7 @@ static void run_non_uniform(int nprocs, int dist)
     int range = 100;
     int random_offset = 100 - range;
 
-	for (u64 entry_count=2; entry_count <= 256; entry_count=entry_count*2)
+	for (u64 entry_count=2; entry_count <= 128; entry_count=entry_count*2)
 	{
 		int sendcounts[nprocs]; // the size of data each process send to other process
 		memset(sendcounts, 0, nprocs*sizeof(int));
@@ -245,13 +243,12 @@ static void run_non_uniform(int nprocs, int dist)
 		if (rank == 0)
 			std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-
+//
 //		if (rank == 2)
 //		{
 //			for(int i = 0; i < roffset; i++)
 //				std::cout << recv_buffer[i] << "\n";
 //		}
-
 
 		delete[] send_buffer;
 		delete[] recv_buffer;
@@ -973,20 +970,18 @@ static void twophase_non_uniform_benchmark(int dist, int range, char *sendbuf, i
 		// 2) prepare metadata and send buffer
 		double pre_send_start = MPI_Wtime();
 		int metadata_send[sendb_num+1];
-		int sendCount = 0;
+
 		int offset = 0;
 		for (int i = 0; i < sendb_num; i++)
 		{
 			int send_index = rotate_index_array[send_indexes[i]];
-			metadata_send[i+1] = sendcounts[send_index];
-			sendCount += sendcounts[send_index];
+			metadata_send[i] = sendcounts[send_index];
 			if (pos_status[send_index] == 0)
 				memcpy(&temp_send_buffer[offset], &sendbuf[sdispls[send_index]*typesize], sendcounts[send_index]*typesize);
 			else
 				memcpy(&temp_send_buffer[offset], &extra_buffer[send_indexes[i]*max_send_count*typesize], sendcounts[send_index]*typesize);
 			offset += sendcounts[send_index]*typesize;
 		}
-		metadata_send[0] = sendCount;
 		double pre_send_end = MPI_Wtime();
 		total_pre_time += pre_send_end - pre_send_start;
 
@@ -994,14 +989,18 @@ static void twophase_non_uniform_benchmark(int dist, int range, char *sendbuf, i
 		double send_meda_start = MPI_Wtime();
 		int sendrank = (rank - k + nprocs) % nprocs;
 		int recvrank = (rank + k) % nprocs;
-		int metadata_recv[sendb_num+1];
-		MPI_Sendrecv(metadata_send, sendb_num+1, MPI_INT, sendrank, 0, metadata_recv, sendb_num+1, MPI_INT, recvrank, 0, comm, MPI_STATUS_IGNORE);
+		int metadata_recv[sendb_num];
+		MPI_Sendrecv(metadata_send, sendb_num, MPI_INT, sendrank, 0, metadata_recv, sendb_num, MPI_INT, recvrank, 0, comm, MPI_STATUS_IGNORE);
 		double send_meda_end = MPI_Wtime();
 		total_send_meda_time += (send_meda_end - send_meda_start);
 
+		int sendCount = 0;
+		for (int i = 0; i < sendb_num; i++)
+			sendCount += metadata_recv[i];
+
 		// 4) exchange data
 		double comm_start = MPI_Wtime();
-		MPI_Sendrecv(temp_send_buffer, sendCount*typesize, MPI_CHAR, sendrank, 1, temp_recv_buffer, metadata_recv[0]*typesize, MPI_CHAR, recvrank, 1, comm, MPI_STATUS_IGNORE);
+		MPI_Sendrecv(temp_send_buffer, offset, MPI_CHAR, sendrank, 1, temp_recv_buffer, sendCount*typesize, MPI_CHAR, recvrank, 1, comm, MPI_STATUS_IGNORE);
 		double comm_end = MPI_Wtime();
 		total_comm_time = (comm_end - comm_start);
 
@@ -1011,10 +1010,10 @@ static void twophase_non_uniform_benchmark(int dist, int range, char *sendbuf, i
 		for (int i = 0; i < sendb_num; i++)
 		{
 			int send_index = rotate_index_array[send_indexes[i]];
-			memcpy(&extra_buffer[send_indexes[i]*max_send_count*typesize], &temp_recv_buffer[offset], metadata_recv[i+1]*typesize);
-			offset += metadata_recv[i+1]*typesize;
+			memcpy(&extra_buffer[send_indexes[i]*max_send_count*typesize], &temp_recv_buffer[offset], metadata_recv[i]*typesize);
+			offset += metadata_recv[i]*typesize;
 			pos_status[send_index] = 1;
-			sendcounts[send_index] = metadata_recv[i+1];
+			sendcounts[send_index] = metadata_recv[i];
 		}
 		double replace_end = MPI_Wtime();
 		total_replace_time += (replace_end - replace_start);
