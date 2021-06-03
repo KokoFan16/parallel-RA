@@ -53,6 +53,11 @@ int main(int argc, char **argv)
 		std::cout << "******************** Random Distribution Scheme ********************\n";
 	run_non_uniform(nprocs, 0);
 
+    // Random Distribution Scheme
+	if (rank == 0)
+		std::cout << "******************** Random Distribution Scheme ********************\n";
+	run_non_uniform(nprocs, 0);
+
 
 //	if (rank == 0)
 //		std::cout << "******************** Random Distribution Scheme ********************\n";
