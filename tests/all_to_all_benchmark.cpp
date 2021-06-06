@@ -48,9 +48,9 @@ int main(int argc, char **argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int nprocs = mcomm.get_nprocs();
 
-    //	if (rank == 0)
-    //		std::cout << "******************** Random Distribution Scheme ********************\n";
-    //	run_uniform(nprocs);
+//	if (rank == 0)
+//		std::cout << "******************** Uniform Experiments ********************\n";
+//	run_uniform(nprocs);
 
     // Random Distribution Scheme
 	if (rank == 0)
@@ -61,10 +61,6 @@ int main(int argc, char **argv)
 	if (rank == 0)
 		std::cout << "******************** Random Distribution Scheme ********************\n";
 	run_non_uniform(nprocs, 0);
-
-	if (rank == 0)
-		std::cout << "******************** Random Distribution Scheme ********************\n";
-    run_non_uniform(nprocs, 0);
 
     // Gaussian Normal Distribution Scheme
 	if (rank == 0)
@@ -90,7 +86,7 @@ static void run_non_uniform(int nprocs, int dist)
     int range = 100;
     int random_offset = 100 - range;
 
-	for (u64 entry_count=2; entry_count <= 128; entry_count=entry_count*2)
+	for (u64 entry_count=2; entry_count <= 256; entry_count=entry_count*2)
 	{
 		int sendcounts[nprocs]; // the size of data each process send to other process
 		memset(sendcounts, 0, nprocs*sizeof(int));
@@ -263,8 +259,7 @@ static void run_uniform(int nprocs)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
 	// Initial send buffer
-
-    for (u64 entry_count=4; entry_count <= 4; entry_count=entry_count*2)
+    for (u64 entry_count=2; entry_count <= 256; entry_count=entry_count*2)
     {
 		u64* send_buffer = new u64[entry_count*nprocs];
 		for (int i=0; i<entry_count*nprocs; i++)
@@ -275,17 +270,43 @@ static void run_uniform(int nprocs)
 
 		u64* recv_buffer = new u64[entry_count*nprocs];
 
-		basic_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+		for (int it=0; it < ITERATION_COUNT; it++)
+			basic_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 
-		datatype_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+		MPI_Barrier(MPI_COMM_WORLD);
+		if (rank == 0)
+			std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-		modified_basic_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+		for (int it=0; it < ITERATION_COUNT; it++)
+			datatype_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 
-		modified_dt_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+		MPI_Barrier(MPI_COMM_WORLD);
+		if (rank == 0)
+			std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
 
-		noRotation_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+		for (int it=0; it < ITERATION_COUNT; it++)
+			modified_basic_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 
-		zerocopy_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+		MPI_Barrier(MPI_COMM_WORLD);
+		if (rank == 0)
+			std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+		for (int it=0; it < ITERATION_COUNT; it++)
+			modified_dt_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+
+		MPI_Barrier(MPI_COMM_WORLD);
+		if (rank == 0)
+			std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+		for (int it=0; it < ITERATION_COUNT; it++)
+			noRotation_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
+
+		MPI_Barrier(MPI_COMM_WORLD);
+		if (rank == 0)
+			std::cout << "----------------------------------------------------------------" << std::endl<< std::endl;
+
+		for (int it=0; it < ITERATION_COUNT; it++)
+			zerocopy_bruck_uniform_benchmark((char*)send_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, (char*)recv_buffer, entry_count, MPI_UNSIGNED_LONG_LONG, MPI_COMM_WORLD);
 
 
 		delete[] send_buffer;
@@ -1139,7 +1160,7 @@ static void basic_bruck_uniform_benchmark(char *sendbuf, int sendcount, MPI_Data
 	MPI_Allreduce(&total_u_time, &max_u_time, 1, MPI_DOUBLE, MPI_MAX, comm);
 	if (total_u_time == max_u_time)
 	{
-		 std::cout << "[NaiveBruck] ["  << nprocs << " " << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
+		 std::cout << "[BasicBruck] ["  << nprocs << " " << sendcount << "] " << total_u_time << " " << rotation_time << " " << exchange_time << " ["
 				 << total_find_blocks_time << " " << total_copy_time << " " << total_comm_time << " " << total_replace_time
 				 << "] " << revs_rotation_time << std::endl;
 	}
